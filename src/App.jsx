@@ -1,0 +1,861 @@
+import { useState, useEffect, useRef } from 'react'
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell } from 'recharts'
+import { supabase } from './lib/supabase'
+import { fmt, fmtShort, isXAF, initials, greeting, PIVOT_CURRENCIES, CURRENCIES, PALETTE, DEFAULT_CATEGORIES, FALLBACK_RATES } from './lib/utils'
+import AuthPage from './pages/AuthPage'
+
+// ─── ICON ─────────────────────────────────────────────────────────────────────
+const Icon = ({ name, size = 18, color = 'currentColor', style: sx = {} }) => {
+  const s = { width: size, height: size, display: 'block', flexShrink: 0, ...sx }
+  const p = {
+    home:      <><path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z" stroke={color} strokeWidth="1.5" fill="none"/><path d="M9 21V12h6v9" stroke={color} strokeWidth="1.5" fill="none"/></>,
+    chart:     <path d="M18 20V10M12 20V4M6 20v-6" stroke={color} strokeWidth="1.8" strokeLinecap="round" fill="none"/>,
+    help:      <><circle cx="12" cy="12" r="10" stroke={color} strokeWidth="1.5" fill="none"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3" stroke={color} strokeWidth="1.5" strokeLinecap="round" fill="none"/><line x1="12" y1="17" x2="12.01" y2="17" stroke={color} strokeWidth="2" strokeLinecap="round"/></>,
+    settings:  <><circle cx="12" cy="12" r="3" stroke={color} strokeWidth="1.5" fill="none"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" stroke={color} strokeWidth="1.5" fill="none"/></>,
+    plus:      <path d="M12 5v14M5 12h14" stroke={color} strokeWidth="2" strokeLinecap="round" fill="none"/>,
+    edit:      <><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke={color} strokeWidth="1.5" fill="none"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke={color} strokeWidth="1.5" fill="none"/></>,
+    trash:     <><polyline points="3 6 5 6 21 6" stroke={color} strokeWidth="1.5" fill="none"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6M10 11v6M14 11v6" stroke={color} strokeWidth="1.5" fill="none"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" stroke={color} strokeWidth="1.5" fill="none"/></>,
+    x:         <path d="M18 6L6 18M6 6l12 12" stroke={color} strokeWidth="2" strokeLinecap="round"/>,
+    upload:    <><polyline points="16 16 12 12 8 16" stroke={color} strokeWidth="1.5" strokeLinecap="round" fill="none"/><line x1="12" y1="12" x2="12" y2="21" stroke={color} strokeWidth="1.5" strokeLinecap="round"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3" stroke={color} strokeWidth="1.5" fill="none"/></>,
+    wallet:    <><rect x="1" y="6" width="22" height="15" rx="2" stroke={color} strokeWidth="1.5" fill="none"/><path d="M1 10h22" stroke={color} strokeWidth="1.5"/><circle cx="17" cy="15" r="1" fill={color}/></>,
+    logout:    <><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" stroke={color} strokeWidth="1.5" fill="none"/><polyline points="16 17 21 12 16 7" stroke={color} strokeWidth="1.5" strokeLinecap="round" fill="none"/><line x1="21" y1="12" x2="9" y2="12" stroke={color} strokeWidth="1.5" strokeLinecap="round"/></>,
+    user:      <><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" stroke={color} strokeWidth="1.5" fill="none"/><circle cx="12" cy="7" r="4" stroke={color} strokeWidth="1.5" fill="none"/></>,
+    tag:       <><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z" stroke={color} strokeWidth="1.5" fill="none"/><line x1="7" y1="7" x2="7.01" y2="7" stroke={color} strokeWidth="2" strokeLinecap="round"/></>,
+    database:  <><ellipse cx="12" cy="5" rx="9" ry="3" stroke={color} strokeWidth="1.5" fill="none"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" stroke={color} strokeWidth="1.5" fill="none"/></>,
+    info:      <><circle cx="12" cy="12" r="10" stroke={color} strokeWidth="1.5" fill="none"/><line x1="12" y1="8" x2="12" y2="12" stroke={color} strokeWidth="1.5" strokeLinecap="round"/><line x1="12" y1="16" x2="12.01" y2="16" stroke={color} strokeWidth="2" strokeLinecap="round"/></>,
+    shield:    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke={color} strokeWidth="1.5" fill="none"/>,
+    file:      <><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke={color} strokeWidth="1.5" fill="none"/><polyline points="14 2 14 8 20 8" stroke={color} strokeWidth="1.5" fill="none"/></>,
+    grip:      <><circle cx="9" cy="6" r="1" fill={color}/><circle cx="15" cy="6" r="1" fill={color}/><circle cx="9" cy="12" r="1" fill={color}/><circle cx="15" cy="12" r="1" fill={color}/><circle cx="9" cy="18" r="1" fill={color}/><circle cx="15" cy="18" r="1" fill={color}/></>,
+    chevron_r: <path d="M9 18l6-6-6-6" stroke={color} strokeWidth="1.5" strokeLinecap="round" fill="none"/>,
+    check:     <polyline points="20 6 9 17 4 12" stroke={color} strokeWidth="2" strokeLinecap="round" fill="none"/>,
+    warning:   <><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke={color} strokeWidth="1.5" fill="none"/><path d="M12 9v4M12 17h.01" stroke={color} strokeWidth="1.5" strokeLinecap="round"/></>,
+    mail:      <><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke={color} strokeWidth="1.5" fill="none"/><polyline points="22,6 12,13 2,6" stroke={color} strokeWidth="1.5" fill="none"/></>,
+  }
+  return <svg viewBox="0 0 24 24" style={s}>{p[name] || p.tag}</svg>
+}
+
+// ─── CSS ──────────────────────────────────────────────────────────────────────
+const CSS = `
+  @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  ::-webkit-scrollbar{width:3px;}::-webkit-scrollbar-thumb{background:#6C63FF44;border-radius:2px;}
+  body{background:#0d0221;}
+  .app{min-height:100vh;background:linear-gradient(160deg,#1a0533 0%,#0d0221 60%,#120830 100%);color:#fff;font-family:'Plus Jakarta Sans',sans-serif;display:flex;flex-direction:column;}
+  .glass{background:rgba(255,255,255,0.04);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.07);border-radius:20px;}
+  .inp{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#fff;border-radius:12px;padding:12px 16px;font-family:inherit;font-size:16px;width:100%;max-width:100%;outline:none;transition:border .2s;-webkit-appearance:none;appearance:none;}
+  .inp:focus{border-color:#6C63FF;background:rgba(108,99,255,0.08);}
+  .inp::placeholder{color:#ffffff33;}
+  .inp.err{border-color:#F43F5E !important;}
+  select.inp{cursor:pointer;}select.inp option{background:#1a0533;color:#fff;}
+  .btn-p{cursor:pointer;background:linear-gradient(135deg,#6C63FF,#4A42CC);color:#fff;border:none;border-radius:14px;padding:14px;font-size:15px;font-weight:700;font-family:inherit;box-shadow:0 8px 24px #6C63FF40;transition:all .2s;width:100%;}
+  .btn-p:hover{transform:translateY(-1px);} .btn-p:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+  .btn-g{cursor:pointer;background:rgba(255,255,255,0.06);color:#fff;border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:10px 16px;font-size:14px;font-weight:600;font-family:inherit;transition:all .2s;}
+  .btn-g:hover{background:rgba(255,255,255,0.1);}
+  .btn-d{cursor:pointer;background:rgba(244,63,94,0.1);color:#FB7185;border:1px solid rgba(244,63,94,0.25);border-radius:12px;padding:10px 16px;font-size:14px;font-weight:600;font-family:inherit;}
+  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.75);backdrop-filter:blur(6px);z-index:200;display:flex;align-items:flex-end;justify-content:center;}
+  .sheet{background:linear-gradient(180deg,#1e0840 0%,#130528 100%);border:1px solid rgba(108,99,255,0.2);border-radius:28px 28px 0 0;padding:28px 24px 40px;width:100%;max-width:480px;max-height:92vh;overflow-y:auto;overflow-x:hidden;}
+  .handle{width:40px;height:4px;background:rgba(255,255,255,0.15);border-radius:2px;margin:0 auto 24px;}
+  .fade-up{animation:fadeUp .35s ease;}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+  .slide-in{animation:slideIn .3s ease;}
+  @keyframes slideIn{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:translateY(0)}}
+  .bnav{position:sticky;bottom:0;background:rgba(13,2,33,0.97);backdrop-filter:blur(20px);border-top:1px solid rgba(108,99,255,0.15);padding:10px 4px 20px;display:flex;justify-content:space-around;align-items:flex-end;}
+  .ni{display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;color:#ffffff33;font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;transition:color .2s;border:none;background:transparent;font-family:inherit;padding:2px 10px;}
+  .ni.on{color:#A89CFF;}
+  .lbl{font-size:11px;color:#ffffff55;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;display:block;font-weight:600;}
+  .srow{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05);cursor:pointer;transition:background .2s;}
+  .srow:hover{background:rgba(108,99,255,0.08);}
+  .shimmer{background:linear-gradient(90deg,#2a1050 25%,#3a1870 50%,#2a1050 75%);background-size:200% 100%;animation:shim 1.5s infinite;border-radius:8px;}
+  @keyframes shim{0%{background-position:200% 0}100%{background-position:-200% 0}}
+  .drag-item{cursor:grab;} .drag-item:active{cursor:grabbing;opacity:.5;}
+  .err-msg{font-size:12px;color:#FB7185;margin-top:5px;}
+`
+
+// ─── AVATAR ───────────────────────────────────────────────────────────────────
+function AccountAvatar({ account, size = 44, fontSize = 15 }) {
+  const st = { width: size, height: size, borderRadius: size * 0.27, background: `${account.color}22`, border: `1px solid ${account.color}44`, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }
+  if (account.svg_data) return <div style={st}><img src={account.svg_data} alt={account.name} style={{ width: size * 0.62, height: size * 0.62, objectFit: 'contain' }} /></div>
+  return <div style={st}><span style={{ fontSize, fontWeight: 800, color: account.color, letterSpacing: '-0.5px', fontFamily: "'Plus Jakarta Sans',sans-serif" }}>{initials(account.name)}</span></div>
+}
+
+// ─── CAROUSEL ─────────────────────────────────────────────────────────────────
+function CardCarousel({ activeIdx, onSwipe, children }) {
+  const trackRef = useRef(null)
+  const startX = useRef(null)
+  const drag = useRef(false)
+  const onPD = e => { startX.current = e.clientX; drag.current = true }
+  const onPM = e => { if (!drag.current) return; const dx = e.clientX - startX.current; if (trackRef.current) trackRef.current.style.transform = `translateX(calc(-${activeIdx * 100}% + ${dx}px))` }
+  const onPU = e => { if (!drag.current) return; drag.current = false; const dx = e.clientX - startX.current; if (trackRef.current) trackRef.current.style.transform = ''; if (Math.abs(dx) > 50) dx < 0 ? onSwipe('next') : onSwipe('prev'); startX.current = null }
+  return (
+    <div onPointerDown={onPD} onPointerMove={onPM} onPointerUp={onPU} onPointerLeave={onPU} style={{ overflow: 'hidden', touchAction: 'pan-y', userSelect: 'none' }}>
+      <div ref={trackRef} style={{ display: 'flex', transition: 'transform .35s cubic-bezier(.25,.46,.45,.94)', transform: `translateX(-${activeIdx * 100}%)` }}>{children}</div>
+    </div>
+  )
+}
+
+// ─── BANK CARD ────────────────────────────────────────────────────────────────
+function BankCard({ account, balance, pivot, toPivot }) {
+  const col = account.color || '#6C63FF'
+  const pivotBal = account.currency ? toPivot(balance, account.currency) : null
+  return (
+    <div style={{ flexShrink: 0, width: '100%' }}>
+      <div style={{ background: `linear-gradient(135deg,${col}dd,${col}77)`, borderRadius: 20, padding: '24px 24px 20px', position: 'relative', overflow: 'hidden', boxShadow: `0 16px 40px ${col}40`, margin: '0 2px' }}>
+        <div style={{ position: 'absolute', top: -30, right: -30, width: 130, height: 130, borderRadius: '50%', background: 'rgba(255,255,255,0.12)' }} />
+        <div style={{ position: 'absolute', bottom: -20, left: -10, width: 90, height: 90, borderRadius: '50%', background: 'rgba(255,255,255,0.07)' }} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+          <div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', letterSpacing: '.1em', textTransform: 'uppercase' }}>Solde</div>
+            <div style={{ fontSize: 26, fontWeight: 800, marginTop: 4, letterSpacing: '-1px', lineHeight: 1 }}>
+              {account.currency ? fmt(balance, account.currency, isXAF(account.currency) ? 0 : 2) : '—'}
+            </div>
+            {pivotBal !== null && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 5 }}>≈ {fmtShort(pivotBal, pivot)}</div>}
+          </div>
+          <div style={{ width: 48, height: 48, borderRadius: 14, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+            {account.svg_data ? <img src={account.svg_data} style={{ width: 32, height: 32, objectFit: 'contain' }} alt="" /> : <span style={{ fontSize: 17, fontWeight: 800, color: '#fff', letterSpacing: '-0.5px' }}>{initials(account.name)}</span>}
+          </div>
+        </div>
+        <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.75)', fontWeight: 700 }}>{account.name}</div>
+        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 2 }}>{account.currency || 'Devise non configurée'}</div>
+      </div>
+    </div>
+  )
+}
+
+// ─── DRAG & DROP LIST ─────────────────────────────────────────────────────────
+function DragList({ items, onReorder, renderItem }) {
+  const [list, setList] = useState(items)
+  const dragIdx = useRef(null)
+  useEffect(() => setList(items), [items])
+  return (
+    <div style={{ display: 'grid', gap: 8 }}>
+      {list.map((item, i) => (
+        <div key={item.id} className="drag-item"
+          draggable
+          onDragStart={() => { dragIdx.current = i }}
+          onDragOver={e => {
+            e.preventDefault()
+            if (dragIdx.current === null || dragIdx.current === i) return
+            const next = [...list]; const [m] = next.splice(dragIdx.current, 1); next.splice(i, 0, m)
+            setList(next); dragIdx.current = i
+          }}
+          onDragEnd={() => { dragIdx.current = null; onReorder(list) }}>
+          {renderItem(item)}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ─── ACCOUNT MODAL ────────────────────────────────────────────────────────────
+function AccountModal({ initial, onClose, onSave, onDelete }) {
+  const [name, setName] = useState(initial?.name || '')
+  const [currency, setCurrency] = useState(initial?.currency || 'XAF')
+  const [color, setColor] = useState(initial?.color || PALETTE[0])
+  const [svgData, setSvgData] = useState(initial?.svg_data || null)
+  const [initBal, setInitBal] = useState('')
+  const [loading, setLoading] = useState(false)
+  const fileRef = useRef()
+  const isEdit = !!initial
+  function handleFile(e) { const f = e.target.files[0]; if (!f) return; const fr = new FileReader(); fr.onload = ev => setSvgData(ev.target.result); fr.readAsDataURL(f) }
+  async function save() { if (!name.trim()) return; setLoading(true); await onSave({ id: initial?.id, name: name.trim(), currency, color, svg_data: svgData }, isEdit ? null : parseFloat(initBal) || 0); setLoading(false) }
+  return (
+    <div className="modal-bg" onClick={onClose}>
+      <div className="sheet slide-in" onClick={e => e.stopPropagation()}>
+        <div className="handle" />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+          <div style={{ fontSize: 18, fontWeight: 800 }}>{isEdit ? 'Modifier le compte' : 'Nouveau compte'}</div>
+          <button className="btn-g" style={{ padding: '6px 10px', borderRadius: 10, display: 'flex' }} onClick={onClose}><Icon name="x" size={16} color="#fff" /></button>
+        </div>
+        {/* Aperçu */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 24, padding: '14px 16px', borderRadius: 14, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div style={{ width: 52, height: 52, borderRadius: 15, background: `${color}22`, border: `2px solid ${color}66`, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+            {svgData ? <img src={svgData} style={{ width: 34, height: 34, objectFit: 'contain' }} alt="" /> : <span style={{ fontSize: 17, fontWeight: 800, color }}>{initials(name) || '?'}</span>}
+          </div>
+          <div><div style={{ fontSize: 15, fontWeight: 700 }}>{name || 'Nom du compte'}</div><div style={{ fontSize: 12, color: '#ffffff55', marginTop: 2 }}>{currency}</div></div>
+        </div>
+        <div style={{ marginBottom: 16 }}><label className="lbl">Nom du compte</label><input className="inp" placeholder="ex. Airtel Money, Wave..." value={name} onChange={e => setName(e.target.value)} autoFocus /></div>
+        <div style={{ marginBottom: 16 }}><label className="lbl">Devise</label><select className="inp" value={currency} onChange={e => setCurrency(e.target.value)}>{CURRENCIES.map(c => <option key={c}>{c}</option>)}</select></div>
+        <div style={{ marginBottom: 16 }}>
+          <label className="lbl">Couleur</label>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {PALETTE.map(c => <button key={c} onClick={() => setColor(c)} style={{ width: 28, height: 28, borderRadius: 8, cursor: 'pointer', border: color === c ? '2px solid #fff' : '2px solid transparent', background: c }} />)}
+            <label style={{ width: 28, height: 28, borderRadius: 8, overflow: 'hidden', cursor: 'pointer', border: '1px dashed #ffffff44', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+              <span style={{ fontSize: 16, color: '#ffffff66' }}>+</span>
+              <input type="color" value={color} onChange={e => setColor(e.target.value)} style={{ position: 'absolute', opacity: 0, width: '100%', height: '100%' }} />
+            </label>
+          </div>
+        </div>
+        <div style={{ marginBottom: 16 }}>
+          <label className="lbl">Logo (SVG / PNG optionnel)</label>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <button onClick={() => fileRef.current?.click()} className="btn-g" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}><Icon name="upload" size={14} color="#fff" />Choisir un fichier</button>
+            {svgData && <><button onClick={() => setSvgData(null)} className="btn-d" style={{ padding: '8px 10px', borderRadius: 10, display: 'flex' }}><Icon name="x" size={14} color="#FB7185" /></button><span style={{ fontSize: 11, color: '#10B981' }}>Logo chargé</span></>}
+          </div>
+          <input ref={fileRef} type="file" accept="image/svg+xml,image/png,image/jpeg" style={{ display: 'none' }} onChange={handleFile} />
+        </div>
+        {!isEdit && <div style={{ marginBottom: 24 }}><label className="lbl">Solde initial ({currency})</label><input className="inp" type="number" placeholder="0.00" value={initBal} onChange={e => setInitBal(e.target.value)} /></div>}
+        <div style={{ display: 'flex', gap: 10 }}>
+          {isEdit && onDelete && <button onClick={() => onDelete(initial.id)} className="btn-d" style={{ padding: '14px 16px', borderRadius: 14, display: 'flex', alignItems: 'center' }}><Icon name="trash" size={15} color="#FB7185" /></button>}
+          <button onClick={save} disabled={loading} className="btn-p">{loading ? 'Sauvegarde...' : isEdit ? 'Enregistrer' : 'Créer le compte'}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── CATEGORY MODAL ───────────────────────────────────────────────────────────
+function CategoryModal({ initial, onClose, onSave, onDelete }) {
+  const [name, setName] = useState(initial?.name || '')
+  const [color, setColor] = useState(initial?.color || PALETTE[0])
+  const isEdit = !!initial
+  async function save() { if (!name.trim()) return; await onSave({ id: initial?.id, name: name.trim(), color }) }
+  return (
+    <div className="modal-bg" onClick={onClose}>
+      <div className="sheet slide-in" onClick={e => e.stopPropagation()}>
+        <div className="handle" />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+          <div style={{ fontSize: 18, fontWeight: 800 }}>{isEdit ? 'Modifier la catégorie' : 'Nouvelle catégorie'}</div>
+          <button className="btn-g" style={{ padding: '6px 10px', borderRadius: 10, display: 'flex' }} onClick={onClose}><Icon name="x" size={16} color="#fff" /></button>
+        </div>
+        <div style={{ marginBottom: 16 }}><label className="lbl">Nom</label><input className="inp" placeholder="ex. Électricité, Abonnements..." value={name} onChange={e => setName(e.target.value)} autoFocus /></div>
+        <div style={{ marginBottom: 24 }}>
+          <label className="lbl">Couleur</label>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {PALETTE.map(c => <button key={c} onClick={() => setColor(c)} style={{ width: 28, height: 28, borderRadius: 8, cursor: 'pointer', border: color === c ? '2px solid #fff' : '2px solid transparent', background: c }} />)}
+            <label style={{ width: 28, height: 28, borderRadius: 8, overflow: 'hidden', cursor: 'pointer', border: '1px dashed #ffffff44', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+              <span style={{ fontSize: 16, color: '#ffffff66' }}>+</span>
+              <input type="color" value={color} onChange={e => setColor(e.target.value)} style={{ position: 'absolute', opacity: 0, width: '100%', height: '100%' }} />
+            </label>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          {isEdit && onDelete && <button onClick={() => onDelete(initial.id)} className="btn-d" style={{ padding: '14px 16px', borderRadius: 14, display: 'flex', alignItems: 'center' }}><Icon name="trash" size={15} color="#FB7185" /></button>}
+          <button onClick={save} className="btn-p">{isEdit ? 'Enregistrer' : 'Créer'}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── ADD TX MODAL ─────────────────────────────────────────────────────────────
+function AddModal({ accounts, categories, onClose, onSave }) {
+  const [form, setForm] = useState({ accountId: accounts[0]?.id || '', amount: '', currency: accounts[0]?.currency || 'XAF', type: 'expense', categoryId: categories[0]?.id || '', note: '', date: new Date().toISOString().split('T')[0] })
+  const [errors, setErrors] = useState({})
+  const [loading, setLoading] = useState(false)
+  function set(k, v) { setForm(f => ({ ...f, [k]: v })); setErrors(e => ({ ...e, [k]: false })) }
+
+  function validate() {
+    const e = {}
+    if (!form.amount || isNaN(parseFloat(form.amount))) e.amount = 'Montant requis'
+    if (!form.note.trim()) e.note = 'La note est obligatoire'
+    if (!form.categoryId) e.categoryId = 'Catégorie requise'
+    setErrors(e)
+    return Object.keys(e).length === 0
+  }
+
+  async function save() {
+    if (!validate()) return
+    setLoading(true)
+    const sign = form.type === 'expense' ? -1 : 1
+    const cat = categories.find(c => c.id === form.categoryId)
+    await onSave({ account_id: form.accountId, amount: sign * Math.abs(parseFloat(form.amount)), currency: form.currency, type: form.type, category_id: form.categoryId || null, category_name: cat?.name || '', category_color: cat?.color || '#6C63FF', note: form.note.trim(), date: form.date })
+    setLoading(false)
+  }
+
+  return (
+    <div className="modal-bg" onClick={onClose}>
+      <div className="sheet slide-in" onClick={e => e.stopPropagation()}>
+        <div className="handle" />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+          <div style={{ fontSize: 18, fontWeight: 800 }}>Nouvelle transaction</div>
+          <button className="btn-g" style={{ padding: '6px 10px', borderRadius: 10, display: 'flex' }} onClick={onClose}><Icon name="x" size={16} color="#fff" /></button>
+        </div>
+
+        {/* Type */}
+        <div style={{ marginBottom: 18 }}>
+          <label className="lbl">Type</label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {[['expense', 'Dépense', '#F43F5E'], ['income', 'Revenu', '#22C55E'], ['transfer', 'Transfert', '#6C63FF']].map(([v, l, c]) => (
+              <button key={v} onClick={() => set('type', v)} style={{ flex: 1, cursor: 'pointer', padding: '12px 6px', borderRadius: 12, border: '1px solid', fontFamily: 'inherit', fontSize: 14, fontWeight: 600, transition: 'all .15s', background: form.type === v ? `${c}1a` : 'transparent', color: form.type === v ? c : '#ffffff44', borderColor: form.type === v ? c : '#ffffff15' }}>{l}</button>
+            ))}
+          </div>
+        </div>
+
+        {/* Compte */}
+        <div style={{ marginBottom: 18 }}><label className="lbl">Compte</label>
+          <select className="inp" value={form.accountId} onChange={e => { const a = accounts.find(x => x.id === e.target.value); set('accountId', e.target.value); if (a?.currency) set('currency', a.currency) }}>
+            {accounts.map(a => <option key={a.id} value={a.id}>{a.name} ({a.currency})</option>)}
+          </select>
+        </div>
+
+        {/* Montant */}
+        <div style={{ marginBottom: 18 }}>
+          <label className="lbl">Montant</label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input className={`inp${errors.amount ? ' err' : ''}`} type="number" placeholder="0.00" value={form.amount} onChange={e => set('amount', e.target.value)} style={{ flex: 1, minWidth: 0 }} />
+            <select className="inp" value={form.currency} onChange={e => set('currency', e.target.value)} style={{ width: 90, flexShrink: 0 }}>{CURRENCIES.map(c => <option key={c}>{c}</option>)}</select>
+          </div>
+          {errors.amount && <div className="err-msg">{errors.amount}</div>}
+          <div style={{ fontSize: 12, color: '#ffffff33', marginTop: 6 }}>Saisie dans n'importe quelle devise — conversion automatique.</div>
+        </div>
+
+        {/* Catégorie */}
+        <div style={{ marginBottom: 18 }}>
+          <label className="lbl">Catégorie</label>
+          {categories.length === 0
+            ? <div style={{ fontSize: 13, color: '#ffffff44', padding: '12px 0' }}>Aucune catégorie. Crées-en une dans les Paramètres.</div>
+            : <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {categories.map(c => (
+                <button key={c.id} onClick={() => set('categoryId', c.id)} style={{ cursor: 'pointer', padding: '8px 14px', borderRadius: 20, border: '1px solid', fontFamily: 'inherit', fontSize: 14, fontWeight: 600, transition: 'all .15s', background: form.categoryId === c.id ? `${c.color}1a` : 'transparent', color: form.categoryId === c.id ? c.color : '#ffffff44', borderColor: form.categoryId === c.id ? c.color : '#ffffff15' }}>{c.name}</button>
+              ))}
+            </div>}
+          {errors.categoryId && <div className="err-msg">{errors.categoryId}</div>}
+        </div>
+
+        {/* Note — obligatoire */}
+        <div style={{ marginBottom: 18 }}>
+          <label className="lbl">Note <span style={{ color: '#F43F5E' }}>*</span></label>
+          <input className={`inp${errors.note ? ' err' : ''}`} placeholder="ex. Courses au marché, Facture électricité..." value={form.note} onChange={e => set('note', e.target.value)} />
+          {errors.note && <div className="err-msg">{errors.note}</div>}
+        </div>
+
+        {/* Date */}
+        <div style={{ marginBottom: 28 }}>
+          <label className="lbl">Date</label>
+          <div style={{ width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
+            <input className="inp" type="date" value={form.date} onChange={e => set('date', e.target.value)} style={{ width: '100%', maxWidth: '100%', display: 'block' }} />
+          </div>
+        </div>
+
+        <button onClick={save} disabled={loading} className="btn-p">{loading ? 'Sauvegarde...' : 'Enregistrer'}</button>
+      </div>
+    </div>
+  )
+}
+
+// ─── TX ROW ───────────────────────────────────────────────────────────────────
+function TxRow({ tx, accounts, pivot, toPivot, onDelete }) {
+  const acc = accounts.find(a => a.id === tx.account_id)
+  const amt = Number(tx.amount)
+  const pivotAmt = toPivot(amt, tx.currency)
+  const col = tx.category_color || '#6C63FF'
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 14, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}>
+      <div style={{ width: 40, height: 40, borderRadius: 12, background: `${col}1a`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: `1px solid ${col}33` }}>
+        <span style={{ fontSize: 12, fontWeight: 800, color: col }}>{(tx.category_name || '?').slice(0, 2).toUpperCase()}</span>
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tx.note || tx.category_name}</div>
+        <div style={{ fontSize: 11, color: '#ffffff33', marginTop: 2 }}>{acc?.name} · {tx.date}</div>
+      </div>
+      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: amt >= 0 ? '#A89CFF' : '#FB7185' }}>{amt >= 0 ? '+' : ''}{fmt(amt, tx.currency, isXAF(tx.currency) ? 0 : 2)}</div>
+        <div style={{ fontSize: 10, color: '#ffffff33', marginTop: 1 }}>{pivotAmt !== null ? `${pivotAmt >= 0 ? '+' : ''}${Math.abs(pivotAmt).toFixed(2)} ${pivot}` : '—'}</div>
+      </div>
+      {onDelete && <button onClick={() => onDelete(tx)} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#ffffff22', padding: '4px', display: 'flex', flexShrink: 0 }} onMouseOver={e => e.currentTarget.style.color = '#FB7185'} onMouseOut={e => e.currentTarget.style.color = '#ffffff22'}><Icon name="x" size={14} color="currentColor" /></button>}
+    </div>
+  )
+}
+
+// ─── SPEND CHART ──────────────────────────────────────────────────────────────
+function SpendChart({ transactions, categories, pivot, toPivot }) {
+  const data = categories.map(cat => ({
+    name: cat.name.slice(0, 6),
+    total: parseFloat(transactions.filter(t => t.category_id === cat.id && t.amount < 0).reduce((s, t) => { const p = toPivot(Math.abs(Number(t.amount)), t.currency); return p !== null ? s + p : s }, 0).toFixed(2)),
+    color: cat.color
+  })).filter(d => d.total > 0).sort((a, b) => b.total - a.total).slice(0, 6)
+  const catTotals = categories.map(cat => ({ ...cat, total: transactions.filter(t => t.category_id === cat.id && t.amount < 0).reduce((s, t) => { const p = toPivot(Math.abs(Number(t.amount)), t.currency); return p !== null ? s + p : s }, 0) })).filter(d => d.total > 0).sort((a, b) => b.total - a.total)
+  const grandTotal = catTotals.reduce((s, d) => s + d.total, 0)
+  if (!data.length) return <div style={{ textAlign: 'center', padding: '40px 0', color: '#ffffff33', fontSize: 13 }}>Aucune dépense enregistrée</div>
+  return (
+    <>
+      <div style={{ height: 160, marginBottom: 24 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} barSize={28}>
+            <XAxis dataKey="name" tick={{ fill: '#ffffff44', fontSize: 10, fontFamily: 'Plus Jakarta Sans' }} axisLine={false} tickLine={false} />
+            <YAxis hide />
+            <Bar dataKey="total" radius={[8, 8, 0, 0]}>{data.map((d, i) => <Cell key={i} fill={d.color} fillOpacity={0.85} />)}</Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+      <div style={{ fontSize: 12, fontWeight: 700, color: '#ffffff55', marginBottom: 12, letterSpacing: '.08em', textTransform: 'uppercase' }}>Répartition</div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        {catTotals.slice(0, 4).map(d => (
+          <div key={d.id} style={{ flex: '1 1 80px', background: `${d.color}18`, border: `1px solid ${d.color}33`, borderRadius: 14, padding: '12px 10px', textAlign: 'center' }}>
+            <div style={{ fontSize: 17, fontWeight: 800, color: d.color }}>{grandTotal > 0 ? Math.round((d.total / grandTotal) * 100) : 0}%</div>
+            <div style={{ fontSize: 10, color: '#ffffff55', marginTop: 4 }}>{d.name}</div>
+          </div>
+        ))}
+      </div>
+    </>
+  )
+}
+
+// ─── PAGE : AIDE ──────────────────────────────────────────────────────────────
+function AidePage() {
+  const faqs = [
+    { q: 'Comment ajouter un compte ?', r: 'Depuis les Paramètres → Comptes → bouton Ajouter. Tu peux choisir un nom, une devise, une couleur et uploader un logo.' },
+    { q: 'Comment changer la devise d\'affichage ?', r: 'En haut de l\'écran Accueil, appuie sur USD, EUR, XAF ou GHS pour basculer instantanément.' },
+    { q: 'Mes données sont-elles sécurisées ?', r: 'Oui. Tes données sont stockées sur Supabase (infrastructure sécurisée) et liées à ton compte Google. Personne d\'autre ne peut les voir.' },
+    { q: 'Comment réordonner mes comptes ?', r: 'Dans Paramètres → Comptes, maintiens et glisse chaque compte pour le déplacer.' },
+    { q: 'Puis-je saisir un montant dans une autre devise ?', r: 'Oui. Lors de l\'ajout d\'une transaction, tu peux choisir n\'importe quelle devise. Winance convertit automatiquement selon les taux de référence.' },
+    { q: 'La note est-elle vraiment obligatoire ?', r: 'Oui — pour que tu saches toujours à quoi correspond chaque transaction quand tu consultes ton historique.' },
+  ]
+  return (
+    <div className="fade-up" style={{ paddingBottom: 20 }}>
+      <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 6 }}>Aide</div>
+      <div style={{ fontSize: 13, color: '#ffffff44', marginBottom: 24 }}>Questions fréquentes</div>
+      <div style={{ display: 'grid', gap: 10 }}>
+        {faqs.map((f, i) => <FaqItem key={i} q={f.q} r={f.r} />)}
+      </div>
+      <div style={{ marginTop: 24, padding: '16px', borderRadius: 14, background: 'rgba(108,99,255,0.08)', border: '1px solid rgba(108,99,255,0.2)', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <Icon name="mail" size={18} color="#A89CFF" />
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 600 }}>Contacter le support</div>
+          <div style={{ fontSize: 12, color: '#ffffff44', marginTop: 2 }}>support@winance.app</div>
+        </div>
+      </div>
+    </div>
+  )
+}
+function FaqItem({ q, r }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div style={{ borderRadius: 14, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+      <button onClick={() => setOpen(o => !o)} style={{ width: '100%', cursor: 'pointer', background: 'none', border: 'none', padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, fontFamily: 'inherit', color: '#fff', fontSize: 13, fontWeight: 600, textAlign: 'left' }}>
+        {q}
+        <Icon name="chevron_r" size={16} color="#ffffff44" style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .2s', flexShrink: 0 }} />
+      </button>
+      {open && <div style={{ padding: '0 16px 14px', fontSize: 13, color: '#ffffff88', lineHeight: 1.6 }}>{r}</div>}
+    </div>
+  )
+}
+
+// ─── PAGE : PARAMÈTRES ────────────────────────────────────────────────────────
+function SettingsPage({ session, profile, accounts, categories, onSaveAccount, onDeleteAccount, onReorderAccounts, onSaveCategory, onDeleteCategory, onReorderCategories, onLogout }) {
+  const [section, setSection] = useState(null) // null | 'comptes' | 'categories' | 'apropos' | 'profil'
+  const [editAcct, setEditAcct] = useState(null)
+  const [showNewAcct, setShowNewAcct] = useState(false)
+  const [editCat, setEditCat] = useState(null)
+  const [showNewCat, setShowNewCat] = useState(false)
+  const [aboutSection, setAboutSection] = useState(null) // null | 'cgv' | 'confidentialite' | 'apropos'
+
+  if (section === 'comptes') return (
+    <div className="fade-up" style={{ paddingBottom: 20 }}>
+      <button onClick={() => setSection(null)} className="btn-g" style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}><Icon name="x" size={14} color="#fff" />Retour</button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div style={{ fontSize: 18, fontWeight: 800 }}>Comptes</div>
+        <button onClick={() => setShowNewAcct(true)} className="btn-g" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}><Icon name="plus" size={14} color="#fff" />Ajouter</button>
+      </div>
+      <div style={{ fontSize: 12, color: '#ffffff44', marginBottom: 14 }}>Maintenez et glissez pour réordonner.</div>
+      <DragList items={accounts} onReorder={onReorderAccounts} renderItem={acc => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 14, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <Icon name="grip" size={16} color="#ffffff33" style={{ flexShrink: 0 }} />
+          <AccountAvatar account={acc} size={38} fontSize={13} />
+          <div style={{ flex: 1 }}><div style={{ fontSize: 13, fontWeight: 600 }}>{acc.name}</div><div style={{ fontSize: 11, color: '#ffffff44' }}>{acc.currency}</div></div>
+          <button onClick={() => setEditAcct(acc)} className="btn-g" style={{ padding: '6px 10px', borderRadius: 10, display: 'flex' }}><Icon name="edit" size={14} color="#fff" /></button>
+        </div>
+      )} />
+      {(showNewAcct || editAcct) && <AccountModal initial={editAcct} onClose={() => { setShowNewAcct(false); setEditAcct(null) }} onSave={async (a, b) => { await onSaveAccount(a, b); setShowNewAcct(false); setEditAcct(null) }} onDelete={editAcct ? async id => { await onDeleteAccount(id); setEditAcct(null) } : null} />}
+    </div>
+  )
+
+  if (section === 'categories') return (
+    <div className="fade-up" style={{ paddingBottom: 20 }}>
+      <button onClick={() => setSection(null)} className="btn-g" style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}><Icon name="x" size={14} color="#fff" />Retour</button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div style={{ fontSize: 18, fontWeight: 800 }}>Catégories</div>
+        <button onClick={() => setShowNewCat(true)} className="btn-g" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}><Icon name="plus" size={14} color="#fff" />Ajouter</button>
+      </div>
+      <div style={{ fontSize: 12, color: '#ffffff44', marginBottom: 14 }}>Maintenez et glissez pour réordonner.</div>
+      <DragList items={categories} onReorder={onReorderCategories} renderItem={cat => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 14, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <Icon name="grip" size={16} color="#ffffff33" style={{ flexShrink: 0 }} />
+          <div style={{ width: 12, height: 12, borderRadius: '50%', background: cat.color, flexShrink: 0 }} />
+          <div style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>{cat.name}</div>
+          <button onClick={() => setEditCat(cat)} className="btn-g" style={{ padding: '6px 10px', borderRadius: 10, display: 'flex' }}><Icon name="edit" size={14} color="#fff" /></button>
+        </div>
+      )} />
+      {(showNewCat || editCat) && <CategoryModal initial={editCat} onClose={() => { setShowNewCat(false); setEditCat(null) }} onSave={async c => { await onSaveCategory(c); setShowNewCat(false); setEditCat(null) }} onDelete={editCat ? async id => { await onDeleteCategory(id); setEditCat(null) } : null} />}
+    </div>
+  )
+
+  if (section === 'apropos') {
+    if (aboutSection === 'cgv') return (
+      <div className="fade-up" style={{ paddingBottom: 20 }}>
+        <button onClick={() => setAboutSection(null)} className="btn-g" style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}><Icon name="x" size={14} color="#fff" />Retour</button>
+        <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 20 }}>Conditions Générales de Vente</div>
+        <div className="glass" style={{ padding: 20, fontSize: 13, color: '#ffffff88', lineHeight: 1.8 }}>
+          <p style={{ marginBottom: 12 }}><strong style={{ color: '#fff' }}>1. Objet</strong><br />Winance est une application gratuite de gestion financière personnelle. Aucune transaction commerciale n'est effectuée via la plateforme.</p>
+          <p style={{ marginBottom: 12 }}><strong style={{ color: '#fff' }}>2. Accès au service</strong><br />L'accès à Winance est gratuit et nécessite un compte Google. Le service est disponible sans engagement de durée.</p>
+          <p style={{ marginBottom: 12 }}><strong style={{ color: '#fff' }}>3. Responsabilité</strong><br />Winance est un outil de suivi personnel. Les données affichées sont saisies manuellement par l'utilisateur. Winance ne peut être tenu responsable d'erreurs de saisie ou d'interprétation financière.</p>
+          <p><strong style={{ color: '#fff' }}>4. Modification des CGV</strong><br />Ces conditions peuvent être modifiées à tout moment. Les utilisateurs seront informés des changements majeurs.</p>
+        </div>
+      </div>
+    )
+    if (aboutSection === 'confidentialite') return (
+      <div className="fade-up" style={{ paddingBottom: 20 }}>
+        <button onClick={() => setAboutSection(null)} className="btn-g" style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}><Icon name="x" size={14} color="#fff" />Retour</button>
+        <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 20 }}>Politique de Confidentialité</div>
+        <div className="glass" style={{ padding: 20, fontSize: 13, color: '#ffffff88', lineHeight: 1.8 }}>
+          <p style={{ marginBottom: 12 }}><strong style={{ color: '#fff' }}>Données collectées</strong><br />Winance collecte uniquement les données nécessaires au fonctionnement : prénom (via Google), transactions et comptes que tu saisis toi-même.</p>
+          <p style={{ marginBottom: 12 }}><strong style={{ color: '#fff' }}>Utilisation des données</strong><br />Tes données sont utilisées exclusivement pour afficher tes informations financières. Elles ne sont jamais vendues, partagées ou utilisées à des fins publicitaires.</p>
+          <p style={{ marginBottom: 12 }}><strong style={{ color: '#fff' }}>Stockage</strong><br />Les données sont stockées sur Supabase (infrastructure sécurisée, serveurs en Europe). Chaque utilisateur n'a accès qu'à ses propres données.</p>
+          <p><strong style={{ color: '#fff' }}>Suppression</strong><br />Tu peux supprimer toutes tes transactions depuis les Paramètres. Pour une suppression complète de ton compte, contacte support@winance.app.</p>
+        </div>
+      </div>
+    )
+    if (aboutSection === 'winance') return (
+      <div className="fade-up" style={{ paddingBottom: 20 }}>
+        <button onClick={() => setAboutSection(null)} className="btn-g" style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}><Icon name="x" size={14} color="#fff" />Retour</button>
+        <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 20 }}>À propos de Winance</div>
+        <div className="glass" style={{ padding: 24, textAlign: 'center', marginBottom: 16 }}>
+          <div style={{ width: 64, height: 64, borderRadius: 18, background: 'linear-gradient(135deg,#6C63FF,#4A42CC)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', boxShadow: '0 12px 32px #6C63FF40' }}>
+            <Icon name="wallet" size={30} color="#fff" />
+          </div>
+          <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>Winance</div>
+          <div style={{ fontSize: 12, color: '#ffffff44', marginBottom: 16 }}>Version 1.0.0</div>
+          <div style={{ fontSize: 13, color: '#ffffff88', lineHeight: 1.7 }}>
+            Winance est une application de gestion financière personnelle multi-devises, conçue pour les Africains qui gèrent plusieurs comptes mobile money, PayPal et bancaires au quotidien.<br /><br />
+            Gratuite, sans publicité, sans revente de données.
+          </div>
+        </div>
+        <div style={{ fontSize: 12, color: '#ffffff33', textAlign: 'center' }}>Fait avec soin · support@winance.app</div>
+      </div>
+    )
+    return (
+      <div className="fade-up" style={{ paddingBottom: 20 }}>
+        <button onClick={() => setSection(null)} className="btn-g" style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}><Icon name="x" size={14} color="#fff" />Retour</button>
+        <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 20 }}>À propos</div>
+        <div style={{ display: 'grid', gap: 8 }}>
+          {[
+            { key: 'cgv', icon: 'file', label: 'Conditions Générales de Vente' },
+            { key: 'confidentialite', icon: 'shield', label: 'Politique de Confidentialité' },
+            { key: 'winance', icon: 'info', label: 'À propos de Winance' },
+          ].map(item => (
+            <button key={item.key} onClick={() => setAboutSection(item.key)} className="srow" style={{ width: '100%', textAlign: 'left', fontFamily: 'inherit' }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(108,99,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name={item.icon} size={18} color="#A89CFF" /></div>
+              <div style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>{item.label}</div>
+              <Icon name="chevron_r" size={16} color="#ffffff33" />
+            </button>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  // Menu principal paramètres
+  return (
+    <div className="fade-up" style={{ paddingBottom: 20 }}>
+      <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 24 }}>Paramètres</div>
+
+      {/* Profil */}
+      <div className="glass" style={{ padding: 20, marginBottom: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ width: 52, height: 52, borderRadius: 16, background: 'linear-gradient(135deg,#6C63FF,#4A42CC)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 6px 20px #6C63FF40' }}>
+            <Icon name="user" size={24} color="#fff" />
+          </div>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 700 }}>{profile?.firstname || '—'}</div>
+            <div style={{ fontSize: 12, color: '#ffffff44', marginTop: 2 }}>{session?.user?.email}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Menu items */}
+      <div style={{ display: 'grid', gap: 8, marginBottom: 20 }}>
+        {[
+          { key: 'comptes', icon: 'wallet', label: 'Comptes', sub: `${accounts.length} compte${accounts.length !== 1 ? 's' : ''}` },
+          { key: 'categories', icon: 'tag', label: 'Catégories', sub: `${categories.length} catégorie${categories.length !== 1 ? 's' : ''}` },
+          { key: 'apropos', icon: 'info', label: 'À propos', sub: 'CGV, confidentialité, Winance' },
+        ].map(item => (
+          <button key={item.key} onClick={() => setSection(item.key)} className="srow" style={{ width: '100%', textAlign: 'left', fontFamily: 'inherit' }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(108,99,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name={item.icon} size={18} color="#A89CFF" /></div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>{item.label}</div>
+              <div style={{ fontSize: 12, color: '#ffffff44', marginTop: 2 }}>{item.sub}</div>
+            </div>
+            <Icon name="chevron_r" size={16} color="#ffffff33" />
+          </button>
+        ))}
+      </div>
+
+      {/* Déconnexion */}
+      <button onClick={onLogout} style={{ width: '100%', cursor: 'pointer', padding: 14, borderRadius: 14, background: 'rgba(244,63,94,0.08)', border: '1px solid rgba(244,63,94,0.2)', color: '#FB7185', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, fontFamily: 'inherit' }}>
+        <Icon name="logout" size={16} color="#FB7185" />Se déconnecter
+      </button>
+    </div>
+  )
+}
+
+// ─── MAIN APP ─────────────────────────────────────────────────────────────────
+export default function App() {
+  const [session, setSession] = useState(null)
+  const [authLoading, setAuthLoading] = useState(true)
+  const [profile, setProfile] = useState(null)
+  const [accounts, setAccounts] = useState([])
+  const [transactions, setTransactions] = useState([])
+  const [categories, setCategories] = useState([])
+  const [pivot, setPivot] = useState('USD')
+  const [page, setPage] = useState('home')
+  const [activeIdx, setActiveIdx] = useState(0)
+  const [filterCat, setFilterCat] = useState('all')
+  const [showAdd, setShowAdd] = useState(false)
+  const [dataLoading, setDataLoading] = useState(false)
+  const rates = FALLBACK_RATES
+
+  // ── Auth ───────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => { setSession(session); setAuthLoading(false) })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, s) => { setSession(s); setAuthLoading(false) })
+    return () => subscription.unsubscribe()
+  }, [])
+
+  useEffect(() => { if (session) loadData() }, [session])
+
+  async function loadData() {
+    setDataLoading(true)
+    const uid = session.user.id
+    const [{ data: prof }, { data: accts }, { data: txs }, { data: cats }] = await Promise.all([
+      supabase.from('profiles').select('*').eq('id', uid).single(),
+      supabase.from('accounts').select('*').eq('user_id', uid).order('position'),
+      supabase.from('transactions').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
+      supabase.from('categories').select('*').eq('user_id', uid).order('position'),
+    ])
+    setProfile(prof); setPivot(prof?.pivot_currency || 'USD')
+    setAccounts(accts || []); setTransactions(txs || [])
+    if (!cats || cats.length === 0) {
+      const { data: nc } = await supabase.from('categories').insert(DEFAULT_CATEGORIES.map((c, i) => ({ ...c, user_id: uid, position: i }))).select()
+      setCategories(nc || [])
+    } else setCategories(cats)
+    setDataLoading(false)
+  }
+
+  const pivotInit = useRef(false)
+  useEffect(() => {
+    if (!pivotInit.current) { pivotInit.current = true; return }
+    if (profile) supabase.from('profiles').update({ pivot_currency: pivot }).eq('id', session.user.id)
+  }, [pivot])
+
+  // ── Conversions ────────────────────────────────────────────────────────────
+  function toUSD(n, cur) { if (!rates[cur] || n === null) return null; return n / rates[cur] }
+  function toPivot(n, cur) { const u = toUSD(n, cur); if (u === null) return null; return u * (rates[pivot] || 1) }
+  function getBalance(accId) {
+    const acc = accounts.find(a => a.id === accId); if (!acc?.currency) return 0
+    return transactions.filter(t => t.account_id === accId).reduce((sum, t) => {
+      const p = toPivot(Number(t.amount), t.currency); if (p === null) return sum
+      return sum + (p / (rates[pivot] || 1)) * (rates[acc.currency] || 1)
+    }, 0)
+  }
+  function getBalancePivot(accId) { const acc = accounts.find(a => a.id === accId); if (!acc?.currency) return null; return toPivot(getBalance(accId), acc.currency) }
+  const totalPivot = accounts.reduce((s, a) => { const b = getBalancePivot(a.id); return b !== null ? s + b : s }, 0)
+  const filteredTx = transactions.filter(t => filterCat === 'all' || t.category_id === filterCat)
+
+  // ── CRUD ───────────────────────────────────────────────────────────────────
+  async function handleSaveAccount(acc, initBal) {
+    const uid = session.user.id
+    if (acc.id) {
+      const { data } = await supabase.from('accounts').update({ name: acc.name, currency: acc.currency, color: acc.color, svg_data: acc.svg_data }).eq('id', acc.id).select().single()
+      setAccounts(p => p.map(a => a.id === acc.id ? data : a))
+    } else {
+      const { data } = await supabase.from('accounts').insert({ ...acc, user_id: uid, position: accounts.length }).select().single()
+      setAccounts(p => [...p, data])
+      if (initBal && initBal !== 0 && data.currency) {
+        const { data: tx } = await supabase.from('transactions').insert({ user_id: uid, account_id: data.id, amount: initBal, currency: data.currency, type: 'income', category_name: 'Solde initial', category_color: '#475569', note: 'Solde initial', date: new Date().toISOString().split('T')[0] }).select().single()
+        if (tx) setTransactions(p => [tx, ...p])
+      }
+    }
+  }
+
+  async function handleDeleteAccount(id) {
+    if (!window.confirm('Supprimer ce compte ?')) return
+    await supabase.from('accounts').delete().eq('id', id)
+    setAccounts(p => p.filter(a => a.id !== id))
+    setActiveIdx(i => Math.max(0, i - 1))
+  }
+
+  async function handleReorderAccounts(reordered) {
+    setAccounts(reordered)
+    await Promise.all(reordered.map((a, i) => supabase.from('accounts').update({ position: i }).eq('id', a.id)))
+  }
+
+  async function handleSaveCategory(cat) {
+    const uid = session.user.id
+    if (cat.id) {
+      const { data } = await supabase.from('categories').update({ name: cat.name, color: cat.color }).eq('id', cat.id).select().single()
+      setCategories(p => p.map(c => c.id === cat.id ? data : c))
+    } else {
+      const { data } = await supabase.from('categories').insert({ name: cat.name, color: cat.color, user_id: uid, position: categories.length }).select().single()
+      setCategories(p => [...p, data])
+    }
+  }
+
+  async function handleDeleteCategory(id) {
+    if (!window.confirm('Supprimer cette catégorie ?')) return
+    await supabase.from('categories').delete().eq('id', id)
+    setCategories(p => p.filter(c => c.id !== id))
+  }
+
+  async function handleReorderCategories(reordered) {
+    setCategories(reordered)
+    await Promise.all(reordered.map((c, i) => supabase.from('categories').update({ position: i }).eq('id', c.id)))
+  }
+
+  async function handleAddTx(txData) {
+    const { data } = await supabase.from('transactions').insert({ ...txData, user_id: session.user.id }).select().single()
+    if (data) setTransactions(p => [data, ...p])
+    setShowAdd(false)
+  }
+
+  async function handleDeleteTx(tx) {
+    await supabase.from('transactions').delete().eq('id', tx.id)
+    setTransactions(p => p.filter(t => t.id !== tx.id))
+  }
+
+  async function logout() { await supabase.auth.signOut() }
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+  if (authLoading) return (
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(160deg,#1a0533 0%,#0d0221 60%,#120830 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <style>{CSS}</style>
+      <div style={{ width: 64, height: 64, borderRadius: 20, background: 'linear-gradient(135deg,#6C63FF,#4A42CC)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 16px 40px #6C63FF40' }}><Icon name="wallet" size={30} color="#fff" /></div>
+    </div>
+  )
+  if (!session) return <><style>{CSS}</style><AuthPage /></>
+
+  const firstname = profile?.firstname || session.user.email?.split('@')[0] || ''
+  const activeAccount = accounts[activeIdx] || accounts[0]
+  function swipe(dir) { if (dir === 'next') setActiveIdx(i => Math.min(i + 1, accounts.length - 1)); else setActiveIdx(i => Math.max(i - 1, 0)) }
+
+  return (
+    <div className="app">
+      <style>{CSS}</style>
+
+      {/* TOP BAR */}
+      <div style={{ padding: '16px 20px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#ffffff88' }}>{greeting(firstname)}</div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {PIVOT_CURRENCIES.map(c => (
+            <button key={c} onClick={() => setPivot(c)} style={{ cursor: 'pointer', padding: '4px 12px', borderRadius: 20, fontSize: 11, border: '1px solid', fontFamily: "'Plus Jakarta Sans',sans-serif", fontWeight: 600, transition: 'all .15s', background: pivot === c ? 'rgba(108,99,255,0.3)' : 'transparent', color: pivot === c ? '#A89CFF' : '#ffffff33', borderColor: pivot === c ? '#6C63FF66' : '#ffffff15' }}>{c}</button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px' }}>
+
+        {/* ── ACCUEIL ── */}
+        {page === 'home' && (
+          <div className="fade-up">
+            <div style={{ textAlign: 'center', marginBottom: 20 }}>
+              <div style={{ fontSize: 11, color: '#ffffff44', letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: 8 }}>Patrimoine total</div>
+              {dataLoading ? <div className="shimmer" style={{ width: 200, height: 42, margin: '0 auto' }} /> : <div style={{ fontSize: 36, fontWeight: 800, letterSpacing: '-1px' }}>{fmtShort(totalPivot, pivot)}</div>}
+            </div>
+            {accounts.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+                <div style={{ fontSize: 14, color: '#ffffff44', marginBottom: 16 }}>Aucun compte configuré</div>
+                <button onClick={() => setPage('settings')} className="btn-p" style={{ width: 'auto', padding: '12px 24px', fontSize: 14 }}>Ajouter un compte</button>
+              </div>
+            ) : (
+              <>
+                <div style={{ marginBottom: 12 }}>
+                  <CardCarousel activeIdx={activeIdx} onSwipe={swipe}>
+                    {accounts.map(acc => <BankCard key={acc.id} account={acc} balance={getBalance(acc.id)} pivot={pivot} toPivot={toPivot} />)}
+                  </CardCarousel>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {accounts.map((_, i) => <button key={i} onClick={() => setActiveIdx(i)} style={{ cursor: 'pointer', border: 'none', borderRadius: '50%', transition: 'all .3s', width: i === activeIdx ? 20 : 8, height: 8, background: i === activeIdx ? (accounts[i]?.color || '#6C63FF') : '#ffffff22' }} />)}
+                  </div>
+                </div>
+              </>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div style={{ fontSize: 16, fontWeight: 700 }}>Transactions récentes</div>
+              <button onClick={() => setPage('stats')} style={{ cursor: 'pointer', background: 'transparent', border: 'none', color: '#A89CFF', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}>Voir tout</button>
+            </div>
+            <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 8, marginBottom: 12 }}>
+              {[{ id: 'all', name: 'Tout', color: '#A89CFF' }, ...categories].map(c => (
+                <button key={c.id} onClick={() => setFilterCat(c.id)} style={{ cursor: 'pointer', padding: '5px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600, border: '1px solid', fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0, transition: 'all .15s', background: filterCat === c.id ? `${c.color}25` : 'transparent', color: filterCat === c.id ? c.color : '#ffffff44', borderColor: filterCat === c.id ? `${c.color}66` : '#ffffff15' }}>{c.name}</button>
+              ))}
+            </div>
+            <div style={{ display: 'grid', gap: 8, paddingBottom: 20 }}>
+              {filteredTx.length === 0 && <div style={{ textAlign: 'center', padding: '32px 0', color: '#ffffff22', fontSize: 13 }}>Aucune transaction</div>}
+              {filteredTx.slice(0, 10).map(tx => <TxRow key={tx.id} tx={tx} accounts={accounts} pivot={pivot} toPivot={toPivot} />)}
+            </div>
+          </div>
+        )}
+
+        {/* ── STATS ── */}
+        {page === 'stats' && (
+          <div className="fade-up" style={{ paddingBottom: 20 }}>
+            <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 20 }}>Statistiques</div>
+            <div className="glass" style={{ padding: 20, marginBottom: 16 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 16, color: '#A89CFF' }}>Dépenses par catégorie</div>
+              <SpendChart transactions={transactions} categories={categories} pivot={pivot} toPivot={toPivot} />
+            </div>
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, color: '#ffffff55', letterSpacing: '.04em', textTransform: 'uppercase' }}>Soldes</div>
+            <div style={{ display: 'grid', gap: 8, marginBottom: 20 }}>
+              {accounts.map(acc => {
+                const bal = getBalance(acc.id), balP = getBalancePivot(acc.id)
+                return (
+                  <div key={acc.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderRadius: 14, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <AccountAvatar account={acc} size={42} fontSize={14} />
+                    <div style={{ flex: 1 }}><div style={{ fontSize: 13, fontWeight: 600 }}>{acc.name}</div><div style={{ fontSize: 11, color: '#ffffff44' }}>{acc.currency}</div></div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: bal >= 0 ? '#fff' : '#FB7185' }}>{fmt(bal, acc.currency, isXAF(acc.currency) ? 0 : 2)}</div>
+                      <div style={{ fontSize: 10, color: '#ffffff33' }}>≈ {balP !== null ? fmtShort(balP, pivot) : '—'}</div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, color: '#ffffff55', letterSpacing: '.04em', textTransform: 'uppercase' }}>Historique complet</div>
+            <div style={{ display: 'grid', gap: 8 }}>
+              {!transactions.length && <div style={{ textAlign: 'center', padding: '32px 0', color: '#ffffff22', fontSize: 13 }}>Aucune transaction</div>}
+              {transactions.map(tx => <TxRow key={tx.id} tx={tx} accounts={accounts} pivot={pivot} toPivot={toPivot} onDelete={handleDeleteTx} />)}
+            </div>
+          </div>
+        )}
+
+        {/* ── AIDE ── */}
+        {page === 'help' && <AidePage />}
+
+        {/* ── PARAMÈTRES ── */}
+        {page === 'settings' && (
+          <SettingsPage
+            session={session} profile={profile}
+            accounts={accounts} categories={categories}
+            onSaveAccount={handleSaveAccount} onDeleteAccount={handleDeleteAccount} onReorderAccounts={handleReorderAccounts}
+            onSaveCategory={handleSaveCategory} onDeleteCategory={handleDeleteCategory} onReorderCategories={handleReorderCategories}
+            onLogout={logout}
+          />
+        )}
+      </div>
+
+      {/* ── BOTTOM NAV ── */}
+      <div className="bnav">
+        {[['home', 'home', 'Accueil'], ['stats', 'chart', 'Stats']].map(([pg, ic, lb]) => (
+          <button key={pg} className={`ni${page === pg ? ' on' : ''}`} onClick={() => setPage(pg)}>
+            <Icon name={ic} size={22} color={page === pg ? '#A89CFF' : '#ffffff33'} />
+            <span>{lb}</span>
+          </button>
+        ))}
+        {/* Bouton + central */}
+        <button className="ni" onClick={() => setShowAdd(true)} style={{ marginTop: -8 }}>
+          <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'linear-gradient(135deg,#6C63FF,#4A42CC)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 24px #6C63FF55' }}>
+            <Icon name="plus" size={24} color="#fff" />
+          </div>
+        </button>
+        {[['help', 'help', 'Aide'], ['settings', 'settings', 'Paramètres']].map(([pg, ic, lb]) => (
+          <button key={pg} className={`ni${page === pg ? ' on' : ''}`} onClick={() => setPage(pg)}>
+            <Icon name={ic} size={22} color={page === pg ? '#A89CFF' : '#ffffff33'} />
+            <span>{lb}</span>
+          </button>
+        ))}
+      </div>
+
+      {showAdd && accounts.length > 0 && <AddModal accounts={accounts.filter(a => a.currency)} categories={categories} onClose={() => setShowAdd(false)} onSave={handleAddTx} />}
+    </div>
+  )
+}
