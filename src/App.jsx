@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell } from 'recharts'
 import { supabase } from './lib/supabase'
-import { fmt, fmtShort, isXAF, initials, greeting, PIVOT_CURRENCIES, CURRENCIES, PALETTE, FALLBACK_RATES } from './lib/utils'
+import { fmt, fmtShort, isXAF, initials, greeting, displayCur, ALL_CURRENCIES, PIVOT_CURRENCIES, CURRENCIES, PALETTE, FALLBACK_RATES } from './lib/utils'
 import AuthPage from './pages/AuthPage'
 
 // ─── ICON ─────────────────────────────────────────────────────────────────────
@@ -68,8 +68,10 @@ const CSS = `
   .srow:hover{opacity:.7;}
   .shimmer{background:linear-gradient(90deg,#2a1050 25%,#3a1870 50%,#2a1050 75%);background-size:200% 100%;animation:shim 1.5s infinite;border-radius:8px;}
   @keyframes shim{0%{background-position:200% 0}100%{background-position:-200% 0}}
-  .drag-item{cursor:grab;} .drag-item:active{cursor:grabbing;opacity:.5;}
+  .drag-item{cursor:grab;} .drag-item:active{cursor:grabbing;}
+  .drag-lift{transform:scale(1.02);box-shadow:0 10px 32px rgba(0,0,0,0.55);background:rgba(108,99,255,0.13);border-radius:14px;z-index:10;position:relative;transition:none !important;}
   .err-msg{font-size:12px;color:#FB7185;margin-top:5px;}
+  .cur-sel{background:rgba(108,99,255,0.2);border:1px solid rgba(108,99,255,0.35);color:#A89CFF;border-radius:20px;padding:6px 12px;font-size:12px;font-weight:700;font-family:'Inter',sans-serif;cursor:pointer;-webkit-appearance:none;appearance:none;outline:none;}
 `
 
 // ─── AVATAR ───────────────────────────────────────────────────────────────────
@@ -125,6 +127,7 @@ function BankCard({ account, balance, pivot, toPivot }) {
 // ─── DRAG & DROP LIST ─────────────────────────────────────────────────────────
 function DragList({ items, onReorder, renderItem }) {
   const [list, setList] = useState(items)
+  const [liftIdx, setLiftIdx] = useState(null)
   const latestList = useRef(items)
   const dragIdx = useRef(null)
   const containerRef = useRef(null)
@@ -134,6 +137,7 @@ function DragList({ items, onReorder, renderItem }) {
   function startDrag(e, i) {
     e.preventDefault()
     dragIdx.current = i
+    setLiftIdx(i)
 
     function onMove(ev) {
       if (dragIdx.current === null) return
@@ -150,11 +154,13 @@ function DragList({ items, onReorder, renderItem }) {
       latestList.current = next
       setList([...next])
       dragIdx.current = targetIdx
+      setLiftIdx(targetIdx)
     }
 
     function onEnd() {
       onReorder(latestList.current)
       dragIdx.current = null
+      setLiftIdx(null)
       document.removeEventListener('mousemove', onMove)
       document.removeEventListener('touchmove', onMove)
       document.removeEventListener('mouseup', onEnd)
@@ -170,7 +176,7 @@ function DragList({ items, onReorder, renderItem }) {
   return (
     <div ref={containerRef} style={{ display: 'grid' }}>
       {list.map((item, i) => (
-        <div key={item.id}>
+        <div key={item.id} className={i === liftIdx ? 'drag-lift' : ''} style={{ transition: 'transform .15s, box-shadow .15s' }}>
           {renderItem(item, e => startDrag(e, i))}
         </div>
       ))}
@@ -205,7 +211,7 @@ function AccountModal({ initial, onClose, onSave, onDelete }) {
           <div><div style={{ fontSize: 15, fontWeight: 700 }}>{name || 'Nom du compte'}</div><div style={{ fontSize: 12, color: '#ffffff55', marginTop: 2 }}>{currency}</div></div>
         </div>
         <div style={{ marginBottom: 16 }}><label className="lbl">Nom du compte</label><input className="inp" placeholder="ex. Airtel Money, Wave..." value={name} onChange={e => setName(e.target.value)} autoFocus /></div>
-        <div style={{ marginBottom: 16 }}><label className="lbl">Devise</label><select className="inp" value={currency} onChange={e => setCurrency(e.target.value)}>{CURRENCIES.map(c => <option key={c}>{c}</option>)}</select></div>
+        <div style={{ marginBottom: 16 }}><label className="lbl">Devise</label><select className="inp" value={currency} onChange={e => setCurrency(e.target.value)}>{ALL_CURRENCIES.map(c => <option key={c} value={c}>{displayCur(c)}</option>)}</select></div>
         <div style={{ marginBottom: 16 }}>
           <label className="lbl">Couleur</label>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -323,7 +329,7 @@ function AddModal({ accounts, categories, onClose, onSave }) {
           <label className="lbl">Montant</label>
           <div style={{ display: 'flex', gap: 8 }}>
             <input className={`inp${errors.amount ? ' err' : ''}`} type="number" placeholder="0.00" value={form.amount} onChange={e => set('amount', e.target.value)} style={{ flex: 1, minWidth: 0 }} />
-            <select className="inp" value={form.currency} onChange={e => set('currency', e.target.value)} style={{ width: 90, flexShrink: 0 }}>{CURRENCIES.map(c => <option key={c}>{c}</option>)}</select>
+            <select className="inp" value={form.currency} onChange={e => set('currency', e.target.value)} style={{ width: 100, flexShrink: 0 }}>{ALL_CURRENCIES.map(c => <option key={c} value={c}>{displayCur(c)}</option>)}</select>
           </div>
           {errors.amount && <div className="err-msg">{errors.amount}</div>}
           <div style={{ fontSize: 12, color: '#ffffff33', marginTop: 6 }}>Saisie dans n'importe quelle devise — conversion automatique.</div>
@@ -370,7 +376,7 @@ function TxRow({ tx, accounts, pivot, toPivot, onDelete }) {
   const pivotAmt = toPivot(amt, tx.currency)
   const col = tx.category_color || '#6C63FF'
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 14, background: 'rgba(255,255,255,0.03)' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
       <div style={{ width: 40, height: 40, borderRadius: 12, background: `${col}1a`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
         <span style={{ fontSize: 12, fontWeight: 800, color: col }}>{(tx.category_name || '?').slice(0, 2).toUpperCase()}</span>
       </div>
@@ -435,7 +441,7 @@ function AidePage() {
     <div className="fade-up" style={{ paddingBottom: 20 }}>
       <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 6 }}>Aide</div>
       <div style={{ fontSize: 13, color: '#ffffff44', marginBottom: 24 }}>Questions fréquentes</div>
-      <div style={{ display: 'grid', gap: 10 }}>
+      <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
         {faqs.map((f, i) => <FaqItem key={i} q={f.q} r={f.r} />)}
       </div>
       <div style={{ textAlign: 'center', marginTop: 24 }}>
@@ -449,12 +455,12 @@ function AidePage() {
 function FaqItem({ q, r }) {
   const [open, setOpen] = useState(false)
   return (
-    <div style={{ borderRadius: 14, background: 'rgba(255,255,255,0.03)', overflow: 'hidden' }}>
-      <button onClick={() => setOpen(o => !o)} style={{ width: '100%', cursor: 'pointer', background: 'none', border: 'none', padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, fontFamily: 'inherit', color: '#fff', fontSize: 13, fontWeight: 600, textAlign: 'left' }}>
+    <div style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+      <button onClick={() => setOpen(o => !o)} style={{ width: '100%', cursor: 'pointer', background: 'none', border: 'none', padding: '14px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, fontFamily: 'inherit', color: '#fff', fontSize: 13, fontWeight: 600, textAlign: 'left' }}>
         {q}
         <Icon name="chevron_r" size={16} color="#ffffff44" style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .2s', flexShrink: 0 }} />
       </button>
-      {open && <div style={{ padding: '0 16px 14px', fontSize: 13, color: '#ffffff88', lineHeight: 1.6 }}>{r}</div>}
+      {open && <div style={{ paddingBottom: 14, fontSize: 13, color: '#ffffff88', lineHeight: 1.6 }}>{r}</div>}
     </div>
   )
 }
@@ -468,10 +474,11 @@ function SettingsPage({ session, profile, accounts, categories, onSaveAccount, o
   const [showNewCat, setShowNewCat] = useState(false)
   const [selectedAccts, setSelectedAccts] = useState([])
   const [selectedCats, setSelectedCats] = useState([])
+  const [editModeAccts, setEditModeAccts] = useState(false)
+  const [editModeCats, setEditModeCats] = useState(false)
 
-  function back() { setSection(null); setSelectedAccts([]); setSelectedCats([]) }
+  function back() { setSection(null); setSelectedAccts([]); setSelectedCats([]); setEditModeAccts(false); setEditModeCats(false) }
 
-  // Back link: "< Titre"
   function PageTitle({ label }) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
@@ -485,7 +492,7 @@ function SettingsPage({ session, profile, accounts, categories, onSaveAccount, o
     const toggleSel = id => setSelectedAccts(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id])
     async function deleteSelected() {
       if (!window.confirm(`Supprimer ${selectedAccts.length} compte(s) ?`)) return
-      for (const id of selectedAccts) await onDeleteAccount(id)
+      for (const id of selectedAccts) await onDeleteAccount(id, true)
       setSelectedAccts([])
     }
     return (
@@ -495,24 +502,41 @@ function SettingsPage({ session, profile, accounts, categories, onSaveAccount, o
             <button onClick={back} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#A89CFF', fontSize: 20, fontWeight: 700, padding: 0, lineHeight: 1, fontFamily: 'inherit' }}>‹</button>
             <div style={{ fontSize: 18, fontWeight: 800 }}>Gérer les comptes</div>
           </div>
-          {selectedAccts.length > 0
-            ? <button onClick={deleteSelected} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#FB7185', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}>Supprimer ({selectedAccts.length})</button>
-            : <button onClick={() => setShowNewAcct(true)} className="btn-g" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}><Icon name="plus" size={14} color="#fff" />Ajouter</button>}
+          {!editModeAccts
+            ? <button onClick={() => setEditModeAccts(true)} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#A89CFF', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}>Modifier</button>
+            : <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                {selectedAccts.length > 0
+                  ? <button onClick={deleteSelected} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#FB7185', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}>Supprimer ({selectedAccts.length})</button>
+                  : <button onClick={() => setShowNewAcct(true)} className="btn-g" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}><Icon name="plus" size={14} color="#fff" />Ajouter</button>}
+                <button onClick={() => { setEditModeAccts(false); setSelectedAccts([]) }} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#ffffff55', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}>Terminer</button>
+              </div>}
         </div>
-        <div style={{ fontSize: 12, color: '#ffffff44', marginBottom: 16 }}>☰ pour réordonner · tap pour sélectionner</div>
-        <DragList items={accounts} onReorder={onReorderAccounts} renderItem={(acc, dragHandle) => (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', background: selectedAccts.includes(acc.id) ? 'rgba(108,99,255,0.08)' : 'transparent', transition: 'background .15s' }}>
-            <div onMouseDown={dragHandle} onTouchStart={dragHandle} style={{ cursor: 'grab', padding: '4px 2px', touchAction: 'none', flexShrink: 0 }}><Icon name="grip" size={16} color="#ffffff33" /></div>
-            <button onClick={() => toggleSel(acc.id)} style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
-              <div style={{ width: 18, height: 18, borderRadius: 5, border: `2px solid ${selectedAccts.includes(acc.id) ? '#A89CFF' : 'rgba(255,255,255,0.2)'}`, background: selectedAccts.includes(acc.id) ? 'rgba(108,99,255,0.35)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all .15s' }}>
-                {selectedAccts.includes(acc.id) && <Icon name="check" size={10} color="#A89CFF" />}
+        {editModeAccts && <div style={{ fontSize: 12, color: '#ffffff44', marginBottom: 16 }}>Maintiens pour réordonner · tap pour sélectionner</div>}
+        {editModeAccts
+          ? <DragList items={accounts} onReorder={onReorderAccounts} renderItem={(acc, dragHandle) => (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', background: selectedAccts.includes(acc.id) ? 'rgba(108,99,255,0.08)' : 'transparent', transition: 'background .15s' }}>
+                <div onMouseDown={dragHandle} onTouchStart={dragHandle} style={{ cursor: 'grab', padding: '4px 2px', touchAction: 'none', flexShrink: 0 }}><Icon name="grip" size={16} color="#ffffff33" /></div>
+                <button onClick={() => toggleSel(acc.id)} style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
+                  <div style={{ width: 18, height: 18, borderRadius: 5, border: `2px solid ${selectedAccts.includes(acc.id) ? '#A89CFF' : 'rgba(255,255,255,0.2)'}`, background: selectedAccts.includes(acc.id) ? 'rgba(108,99,255,0.35)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all .15s' }}>
+                    {selectedAccts.includes(acc.id) && <Icon name="check" size={10} color="#A89CFF" />}
+                  </div>
+                  <AccountAvatar account={acc} size={36} fontSize={12} />
+                  <div><div style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{acc.name}</div><div style={{ fontSize: 11, color: '#ffffff44' }}>{displayCur(acc.currency)}</div></div>
+                </button>
+                <button onClick={() => setEditAcct(acc)} style={{ cursor: 'pointer', background: 'none', border: 'none', display: 'flex', padding: 4, flexShrink: 0 }}><Icon name="edit" size={15} color="#ffffff44" /></button>
               </div>
-              <AccountAvatar account={acc} size={36} fontSize={12} />
-              <div><div style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{acc.name}</div><div style={{ fontSize: 11, color: '#ffffff44' }}>{acc.currency}</div></div>
-            </button>
-            <button onClick={() => setEditAcct(acc)} style={{ cursor: 'pointer', background: 'none', border: 'none', display: 'flex', padding: 4, flexShrink: 0 }}><Icon name="edit" size={15} color="#ffffff44" /></button>
-          </div>
-        )} />
+            )} />
+          : <div>
+              {accounts.map((acc, i) => (
+                <button key={acc.id} onClick={() => setEditAcct(acc)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', width: '100%', background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.06)', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
+                  <AccountAvatar account={acc} size={38} fontSize={13} />
+                  <div style={{ flex: 1 }}><div style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{acc.name}</div><div style={{ fontSize: 11, color: '#ffffff44', marginTop: 2 }}>{displayCur(acc.currency)}</div></div>
+                  <Icon name="chevron_r" size={16} color="#ffffff33" />
+                </button>
+              ))}
+              {accounts.length === 0 && <div style={{ fontSize: 13, color: '#ffffff44', padding: '20px 0', textAlign: 'center' }}>Aucun compte</div>}
+              <button onClick={() => setShowNewAcct(true)} className="btn-g" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, marginTop: 16 }}><Icon name="plus" size={14} color="#fff" />Ajouter un compte</button>
+            </div>}
         {(showNewAcct || editAcct) && <AccountModal initial={editAcct} onClose={() => { setShowNewAcct(false); setEditAcct(null) }} onSave={async (a, b) => { await onSaveAccount(a, b); setShowNewAcct(false); setEditAcct(null) }} onDelete={editAcct ? async id => { await onDeleteAccount(id); setEditAcct(null) } : null} />}
       </div>
     )
@@ -522,7 +546,7 @@ function SettingsPage({ session, profile, accounts, categories, onSaveAccount, o
     const toggleSel = id => setSelectedCats(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id])
     async function deleteSelected() {
       if (!window.confirm(`Supprimer ${selectedCats.length} catégorie(s) ?`)) return
-      for (const id of selectedCats) await onDeleteCategory(id)
+      for (const id of selectedCats) await onDeleteCategory(id, true)
       setSelectedCats([])
     }
     return (
@@ -532,24 +556,41 @@ function SettingsPage({ session, profile, accounts, categories, onSaveAccount, o
             <button onClick={back} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#A89CFF', fontSize: 20, fontWeight: 700, padding: 0, lineHeight: 1, fontFamily: 'inherit' }}>‹</button>
             <div style={{ fontSize: 18, fontWeight: 800 }}>Gérer les catégories</div>
           </div>
-          {selectedCats.length > 0
-            ? <button onClick={deleteSelected} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#FB7185', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}>Supprimer ({selectedCats.length})</button>
-            : <button onClick={() => setShowNewCat(true)} className="btn-g" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}><Icon name="plus" size={14} color="#fff" />Ajouter</button>}
+          {!editModeCats
+            ? <button onClick={() => setEditModeCats(true)} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#A89CFF', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}>Modifier</button>
+            : <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                {selectedCats.length > 0
+                  ? <button onClick={deleteSelected} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#FB7185', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}>Supprimer ({selectedCats.length})</button>
+                  : <button onClick={() => setShowNewCat(true)} className="btn-g" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}><Icon name="plus" size={14} color="#fff" />Ajouter</button>}
+                <button onClick={() => { setEditModeCats(false); setSelectedCats([]) }} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#ffffff55', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}>Terminer</button>
+              </div>}
         </div>
-        <div style={{ fontSize: 12, color: '#ffffff44', marginBottom: 16 }}>☰ pour réordonner · tap pour sélectionner</div>
-        <DragList items={categories} onReorder={onReorderCategories} renderItem={(cat, dragHandle) => (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', background: selectedCats.includes(cat.id) ? 'rgba(108,99,255,0.08)' : 'transparent', transition: 'background .15s' }}>
-            <div onMouseDown={dragHandle} onTouchStart={dragHandle} style={{ cursor: 'grab', padding: '4px 2px', touchAction: 'none', flexShrink: 0 }}><Icon name="grip" size={16} color="#ffffff33" /></div>
-            <button onClick={() => toggleSel(cat.id)} style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
-              <div style={{ width: 18, height: 18, borderRadius: 5, border: `2px solid ${selectedCats.includes(cat.id) ? '#A89CFF' : 'rgba(255,255,255,0.2)'}`, background: selectedCats.includes(cat.id) ? 'rgba(108,99,255,0.35)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all .15s' }}>
-                {selectedCats.includes(cat.id) && <Icon name="check" size={10} color="#A89CFF" />}
+        {editModeCats && <div style={{ fontSize: 12, color: '#ffffff44', marginBottom: 16 }}>Maintiens pour réordonner · tap pour sélectionner</div>}
+        {editModeCats
+          ? <DragList items={categories} onReorder={onReorderCategories} renderItem={(cat, dragHandle) => (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', background: selectedCats.includes(cat.id) ? 'rgba(108,99,255,0.08)' : 'transparent', transition: 'background .15s' }}>
+                <div onMouseDown={dragHandle} onTouchStart={dragHandle} style={{ cursor: 'grab', padding: '4px 2px', touchAction: 'none', flexShrink: 0 }}><Icon name="grip" size={16} color="#ffffff33" /></div>
+                <button onClick={() => toggleSel(cat.id)} style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
+                  <div style={{ width: 18, height: 18, borderRadius: 5, border: `2px solid ${selectedCats.includes(cat.id) ? '#A89CFF' : 'rgba(255,255,255,0.2)'}`, background: selectedCats.includes(cat.id) ? 'rgba(108,99,255,0.35)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all .15s' }}>
+                    {selectedCats.includes(cat.id) && <Icon name="check" size={10} color="#A89CFF" />}
+                  </div>
+                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: cat.color, flexShrink: 0 }} />
+                  <div style={{ fontSize: 14, fontWeight: 600, color: '#fff' }}>{cat.name}</div>
+                </button>
+                <button onClick={() => setEditCat(cat)} style={{ cursor: 'pointer', background: 'none', border: 'none', display: 'flex', padding: 4, flexShrink: 0 }}><Icon name="edit" size={15} color="#ffffff44" /></button>
               </div>
-              <div style={{ width: 10, height: 10, borderRadius: '50%', background: cat.color, flexShrink: 0 }} />
-              <div style={{ fontSize: 14, fontWeight: 600, color: '#fff' }}>{cat.name}</div>
-            </button>
-            <button onClick={() => setEditCat(cat)} style={{ cursor: 'pointer', background: 'none', border: 'none', display: 'flex', padding: 4, flexShrink: 0 }}><Icon name="edit" size={15} color="#ffffff44" /></button>
-          </div>
-        )} />
+            )} />
+          : <div>
+              {categories.map(cat => (
+                <button key={cat.id} onClick={() => setEditCat(cat)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 0', width: '100%', background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.06)', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
+                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: cat.color, flexShrink: 0 }} />
+                  <div style={{ flex: 1, fontSize: 14, fontWeight: 600, color: '#fff' }}>{cat.name}</div>
+                  <Icon name="chevron_r" size={16} color="#ffffff33" />
+                </button>
+              ))}
+              {categories.length === 0 && <div style={{ fontSize: 13, color: '#ffffff44', padding: '20px 0', textAlign: 'center' }}>Aucune catégorie</div>}
+              <button onClick={() => setShowNewCat(true)} className="btn-g" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, marginTop: 16 }}><Icon name="plus" size={14} color="#fff" />Ajouter une catégorie</button>
+            </div>}
         {(showNewCat || editCat) && <CategoryModal initial={editCat} onClose={() => { setShowNewCat(false); setEditCat(null) }} onSave={async c => { await onSaveCategory(c); setShowNewCat(false); setEditCat(null) }} onDelete={editCat ? async id => { await onDeleteCategory(id); setEditCat(null) } : null} />}
       </div>
     )
