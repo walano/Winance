@@ -279,8 +279,8 @@ function AddModal({ accounts, categories, onClose, onSave }) {
         <div style={{ marginBottom: 18 }}>
           <label className="lbl">Type</label>
           <div style={{ display: 'flex', gap: 8 }}>
-            {[['expense', 'Dépense', '#F43F5E'], ['income', 'Revenu', '#22C55E'], ['transfer', 'Transfert', '#6C63FF']].map(([v, l, c]) => (
-              <button key={v} onClick={() => set('type', v)} style={{ flex: 1, cursor: 'pointer', padding: '12px 6px', borderRadius: 12, border: '1px solid transparent', fontFamily: 'inherit', fontSize: 14, fontWeight: 600, transition: 'all .15s', background: form.type === v ? `${c}1a` : 'rgba(255,255,255,0.04)', color: form.type === v ? c : '#ffffff55', borderColor: form.type === v ? c : 'transparent' }}>{l}</button>
+            {[['expense', 'Dépense'], ['income', 'Revenu'], ['transfer', 'Transfert']].map(([v, l]) => (
+              <button key={v} onClick={() => set('type', v)} style={{ flex: 1, cursor: 'pointer', padding: '12px 6px', borderRadius: 12, border: 'none', fontFamily: 'inherit', fontSize: 14, fontWeight: 600, transition: 'all .15s', background: form.type === v ? 'rgba(108,99,255,0.35)' : 'transparent', color: form.type === v ? '#A89CFF' : '#ffffff55' }}>{l}</button>
             ))}
           </div>
         </div>
@@ -310,7 +310,7 @@ function AddModal({ accounts, categories, onClose, onSave }) {
             ? <div style={{ fontSize: 13, color: '#ffffff44', padding: '12px 0' }}>Aucune catégorie. Crées-en une dans les Paramètres.</div>
             : <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {categories.map(c => (
-                <button key={c.id} onClick={() => set('categoryId', c.id)} style={{ cursor: 'pointer', padding: '8px 14px', borderRadius: 20, border: '1px solid transparent', fontFamily: 'inherit', fontSize: 14, fontWeight: 600, transition: 'all .15s', background: form.categoryId === c.id ? `${c.color}1a` : 'rgba(255,255,255,0.04)', color: form.categoryId === c.id ? c.color : '#ffffff55', borderColor: form.categoryId === c.id ? c.color : 'transparent' }}>{c.name}</button>
+                <button key={c.id} onClick={() => set('categoryId', c.id)} style={{ cursor: 'pointer', padding: '8px 14px', borderRadius: 20, border: 'none', fontFamily: 'inherit', fontSize: 14, fontWeight: 600, transition: 'all .15s', background: form.categoryId === c.id ? 'rgba(108,99,255,0.35)' : 'transparent', color: form.categoryId === c.id ? '#A89CFF' : '#ffffff55' }}>{c.name}</button>
               ))}
             </div>}
           {errors.categoryId && <div className="err-msg">{errors.categoryId}</div>}
@@ -719,21 +719,23 @@ export default function App() {
     <div className="app">
       <style>{CSS}</style>
 
-      {/* ── HEADER ── */}
-      <div style={{ padding: '24px 20px 0' }}>
-        <div style={{ fontSize: 13, color: '#ffffff55', fontWeight: 500 }}>Bonsoir,</div>
-        <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.5px', marginBottom: 16 }}>{firstname}</div>
-        <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', marginBottom: 16 }} />
-        <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
-          {PIVOT_CURRENCIES.map(c => (
-            <button key={c} onClick={() => setPivot(c)} style={{ cursor: 'pointer', padding: '5px 13px', borderRadius: 20, fontSize: 11, border: 'none', fontFamily: "'Inter',sans-serif", fontWeight: 600, transition: 'all .15s', background: pivot === c ? 'rgba(108,99,255,0.35)' : 'rgba(255,255,255,0.06)', color: pivot === c ? '#A89CFF' : '#ffffff55' }}>{c}</button>
-          ))}
+      {/* ── HEADER — accueil & stats uniquement ── */}
+      {(page === 'home' || page === 'stats') && (
+        <div style={{ padding: '24px 20px 0' }}>
+          <div style={{ fontSize: 13, color: '#ffffff55', fontWeight: 500 }}>Bonsoir,</div>
+          <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.5px', marginBottom: 16 }}>{firstname}</div>
+          <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', marginBottom: 16 }} />
+          <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
+            {PIVOT_CURRENCIES.map(c => (
+              <button key={c} onClick={() => setPivot(c)} style={{ cursor: 'pointer', padding: '5px 13px', borderRadius: 20, fontSize: 11, border: 'none', fontFamily: "'Inter',sans-serif", fontWeight: 600, transition: 'all .15s', background: pivot === c ? 'rgba(108,99,255,0.35)' : 'transparent', color: pivot === c ? '#A89CFF' : '#ffffff55' }}>{c}</button>
+            ))}
+          </div>
+          <div style={{ fontSize: 11, color: '#ffffff44', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 6 }}>Patrimoine total</div>
+          {dataLoading
+            ? <div className="shimmer" style={{ width: 200, height: 40, marginBottom: 20 }} />
+            : <div style={{ fontSize: 36, fontWeight: 800, letterSpacing: '-1px', marginBottom: 20 }}>{fmtShort(totalPivot, pivot)}</div>}
         </div>
-        <div style={{ fontSize: 11, color: '#ffffff44', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 6 }}>Patrimoine total</div>
-        {dataLoading
-          ? <div className="shimmer" style={{ width: 200, height: 40, marginBottom: 20 }} />
-          : <div style={{ fontSize: 36, fontWeight: 800, letterSpacing: '-1px', marginBottom: 20 }}>{fmtShort(totalPivot, pivot)}</div>}
-      </div>
+      )}
 
       <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px', paddingBottom: 90 }}>
 
@@ -764,7 +766,7 @@ export default function App() {
             </div>
             <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 8, marginBottom: 12 }}>
               {[{ id: 'all', name: 'Tout', color: '#A89CFF' }, ...categories].map(c => (
-                <button key={c.id} onClick={() => setFilterCat(c.id)} style={{ cursor: 'pointer', padding: '5px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600, border: '1px solid transparent', fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0, transition: 'all .15s', background: filterCat === c.id ? `${c.color}25` : 'rgba(255,255,255,0.04)', color: filterCat === c.id ? c.color : '#ffffff55', borderColor: filterCat === c.id ? `${c.color}66` : 'transparent' }}>{c.name}</button>
+                <button key={c.id} onClick={() => setFilterCat(c.id)} style={{ cursor: 'pointer', padding: '5px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600, border: 'none', fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0, transition: 'all .15s', background: filterCat === c.id ? 'rgba(108,99,255,0.35)' : 'transparent', color: filterCat === c.id ? '#A89CFF' : '#ffffff55' }}>{c.name}</button>
               ))}
             </div>
             <div style={{ display: 'grid', gap: 8, paddingBottom: 20 }}>
