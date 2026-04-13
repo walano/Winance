@@ -427,6 +427,31 @@ function SpendChart({ transactions, categories, pivot, toPivot }) {
   )
 }
 
+// ─── FAVORITES MODAL ──────────────────────────────────────────────────────────
+function FavoritesModal({ onDone }) {
+  const [sel, setSel] = useState(['XAF','EUR','USD','GHS'])
+  const toggle = c => setSel(s => s.includes(c) ? s.filter(x => x !== c) : [...s, c])
+  return (
+    <div className="modal-bg" style={{ alignItems: 'center' }}>
+      <div className="sheet slide-in" style={{ borderRadius: 24, maxHeight: '85vh' }}>
+        <div className="handle" />
+        <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 8, textAlign: 'center' }}>Tes devises</div>
+        <div style={{ fontSize: 13, color: '#ffffff55', marginBottom: 24, textAlign: 'center' }}>Sélectionne les devises que tu utilises au quotidien</div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 28 }}>
+          {ALL_CURRENCIES.map(c => (
+            <button key={c} onClick={() => toggle(c)} style={{ cursor: 'pointer', padding: '8px 16px', borderRadius: 20, border: 'none', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, transition: 'all .15s', background: sel.includes(c) ? 'rgba(108,99,255,0.35)' : 'rgba(255,255,255,0.06)', color: sel.includes(c) ? '#A89CFF' : '#ffffff77' }}>
+              {displayCur(c)}
+            </button>
+          ))}
+        </div>
+        <button onClick={() => sel.length > 0 && onDone(sel)} disabled={sel.length === 0} className="btn-p">
+          Continuer
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ─── PAGE : AIDE ──────────────────────────────────────────────────────────────
 function AidePage() {
   const faqs = [
@@ -528,7 +553,7 @@ function SettingsPage({ session, profile, accounts, categories, onSaveAccount, o
             )} />
           : <div>
               {accounts.map((acc, i) => (
-                <button key={acc.id} onClick={() => setEditAcct(acc)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', width: '100%', background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.06)', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
+                <button key={acc.id} onClick={() => setEditAcct(acc)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', width: '100%', background: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
                   <AccountAvatar account={acc} size={38} fontSize={13} />
                   <div style={{ flex: 1 }}><div style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{acc.name}</div><div style={{ fontSize: 11, color: '#ffffff44', marginTop: 2 }}>{displayCur(acc.currency)}</div></div>
                   <Icon name="chevron_r" size={16} color="#ffffff33" />
@@ -691,6 +716,10 @@ export default function App() {
   const [showAddAccount, setShowAddAccount] = useState(false)
   const [dataLoading, setDataLoading] = useState(false)
   const rates = FALLBACK_RATES
+  const [favorites, setFavorites] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('winance_favorites') || 'null') || ['XAF','EUR','USD','GHS'] } catch { return ['XAF','EUR','USD','GHS'] }
+  })
+  const [showFavModal, setShowFavModal] = useState(false)
 
   // ── Auth ───────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -699,7 +728,12 @@ export default function App() {
     return () => subscription.unsubscribe()
   }, [])
 
-  useEffect(() => { if (session) loadData() }, [session])
+  useEffect(() => {
+    if (session) {
+      loadData()
+      if (!localStorage.getItem('winance_fav_done')) setShowFavModal(true)
+    }
+  }, [session])
 
   async function loadData() {
     setDataLoading(true)
@@ -752,8 +786,8 @@ export default function App() {
     }
   }
 
-  async function handleDeleteAccount(id) {
-    if (!window.confirm('Supprimer ce compte ?')) return
+  async function handleDeleteAccount(id, skipConfirm = false) {
+    if (!skipConfirm && !window.confirm('Supprimer ce compte ?')) return
     await supabase.from('accounts').delete().eq('id', id)
     setAccounts(p => p.filter(a => a.id !== id))
     setActiveIdx(i => Math.max(0, i - 1))
@@ -775,8 +809,8 @@ export default function App() {
     }
   }
 
-  async function handleDeleteCategory(id) {
-    if (!window.confirm('Supprimer cette catégorie ?')) return
+  async function handleDeleteCategory(id, skipConfirm = false) {
+    if (!skipConfirm && !window.confirm('Supprimer cette catégorie ?')) return
     await supabase.from('categories').delete().eq('id', id)
     setCategories(p => p.filter(c => c.id !== id))
   }
@@ -799,6 +833,14 @@ export default function App() {
 
   async function logout() { await supabase.auth.signOut() }
 
+  function saveFavorites(fav) {
+    setFavorites(fav)
+    localStorage.setItem('winance_favorites', JSON.stringify(fav))
+    localStorage.setItem('winance_fav_done', '1')
+    setShowFavModal(false)
+    if (!fav.includes(pivot)) setPivot(fav[0])
+  }
+
   // ── Render ─────────────────────────────────────────────────────────────────
   if (authLoading) return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(160deg,#1a0533 0%,#0d0221 60%,#120830 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -818,18 +860,30 @@ export default function App() {
       {/* ── HEADER — accueil uniquement ── */}
       {page === 'home' && (
         <div style={{ padding: '24px 20px 0' }}>
-          <div style={{ fontSize: 13, color: '#ffffff55', fontWeight: 500 }}>Bonsoir,</div>
-          <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.5px', marginBottom: 16 }}>{firstname}</div>
-          <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', marginBottom: 16 }} />
-          <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
-            {PIVOT_CURRENCIES.map(c => (
-              <button key={c} onClick={() => setPivot(c)} style={{ cursor: 'pointer', padding: '5px 13px', borderRadius: 20, fontSize: 11, border: 'none', fontFamily: "'Inter',sans-serif", fontWeight: 600, transition: 'all .15s', background: pivot === c ? 'rgba(108,99,255,0.35)' : 'transparent', color: pivot === c ? '#A89CFF' : '#ffffff55' }}>{c}</button>
-            ))}
+          {/* Row: salutation + currency dropdown */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+            <div>
+              <div style={{ fontSize: 12, color: '#ffffff55', fontWeight: 500 }}>{greeting()}</div>
+              <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.5px', lineHeight: 1.1 }}>{firstname}</div>
+            </div>
+            <select
+              className="cur-sel"
+              value={pivot}
+              onChange={e => setPivot(e.target.value)}
+            >
+              {favorites.map(c => <option key={c} value={c} style={{ background: '#1a0533', color: '#fff' }}>{displayCur(c)}</option>)}
+              <option disabled>──────</option>
+              {ALL_CURRENCIES.filter(c => !favorites.includes(c)).map(c => <option key={c} value={c} style={{ background: '#1a0533', color: '#fff' }}>{displayCur(c)}</option>)}
+            </select>
           </div>
-          <div style={{ fontSize: 11, color: '#ffffff44', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 6 }}>Patrimoine total</div>
-          {dataLoading
-            ? <div className="shimmer" style={{ width: 200, height: 40, marginBottom: 20 }} />
-            : <div style={{ fontSize: 36, fontWeight: 800, letterSpacing: '-1px', marginBottom: 20 }}>{fmtShort(totalPivot, pivot)}</div>}
+          <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', marginBottom: 14 }} />
+          {/* Patrimoine centré */}
+          <div style={{ textAlign: 'center', marginBottom: 20 }}>
+            <div style={{ fontSize: 10, color: '#ffffff44', letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: 6 }}>Patrimoine total</div>
+            {dataLoading
+              ? <div className="shimmer" style={{ width: 180, height: 38, margin: '0 auto' }} />
+              : <div style={{ fontSize: 34, fontWeight: 800, letterSpacing: '-1px' }}>{fmtShort(totalPivot, pivot)}</div>}
+          </div>
         </div>
       )}
 
@@ -865,7 +919,7 @@ export default function App() {
                 <button key={c.id} onClick={() => setFilterCat(c.id)} style={{ cursor: 'pointer', padding: '5px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600, border: 'none', fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0, transition: 'all .15s', background: filterCat === c.id ? 'rgba(108,99,255,0.35)' : 'transparent', color: filterCat === c.id ? '#A89CFF' : '#ffffff55' }}>{c.name}</button>
               ))}
             </div>
-            <div style={{ display: 'grid', gap: 8, paddingBottom: 20 }}>
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingBottom: 20 }}>
               {filteredTx.length === 0 && <div style={{ textAlign: 'center', padding: '32px 0', color: '#ffffff22', fontSize: 13 }}>Aucune transaction</div>}
               {filteredTx.slice(0, 10).map(tx => <TxRow key={tx.id} tx={tx} accounts={accounts} pivot={pivot} toPivot={toPivot} />)}
             </div>
@@ -884,14 +938,14 @@ export default function App() {
               <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 16, color: '#A89CFF' }}>Dépenses par catégorie</div>
               <SpendChart transactions={transactions} categories={categories} pivot={pivot} toPivot={toPivot} />
             </div>
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, color: '#ffffff55', letterSpacing: '.04em' }}>Soldes</div>
-            <div style={{ display: 'grid', gap: 8, marginBottom: 20 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4, color: '#ffffff55', letterSpacing: '.04em' }}>Soldes</div>
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', marginBottom: 20 }}>
               {accounts.map(acc => {
                 const bal = getBalance(acc.id), balP = getBalancePivot(acc.id)
                 return (
-                  <div key={acc.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderRadius: 14, background: 'rgba(255,255,255,0.03)' }}>
-                    <AccountAvatar account={acc} size={42} fontSize={14} />
-                    <div style={{ flex: 1 }}><div style={{ fontSize: 13, fontWeight: 600 }}>{acc.name}</div><div style={{ fontSize: 11, color: '#ffffff44' }}>{acc.currency}</div></div>
+                  <div key={acc.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                    <AccountAvatar account={acc} size={40} fontSize={13} />
+                    <div style={{ flex: 1 }}><div style={{ fontSize: 13, fontWeight: 600 }}>{acc.name}</div><div style={{ fontSize: 11, color: '#ffffff44' }}>{displayCur(acc.currency)}</div></div>
                     <div style={{ textAlign: 'right' }}>
                       <div style={{ fontSize: 14, fontWeight: 700, color: bal >= 0 ? '#fff' : '#FB7185' }}>{fmt(bal, acc.currency, isXAF(acc.currency) ? 0 : 2)}</div>
                       <div style={{ fontSize: 10, color: '#ffffff33' }}>≈ {balP !== null ? fmtShort(balP, pivot) : '—'}</div>
@@ -900,8 +954,8 @@ export default function App() {
                 )
               })}
             </div>
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, color: '#ffffff55', letterSpacing: '.04em' }}>Historique complet</div>
-            <div style={{ display: 'grid', gap: 8 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4, color: '#ffffff55', letterSpacing: '.04em' }}>Historique complet</div>
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
               {!transactions.length && <div style={{ textAlign: 'center', padding: '32px 0', color: '#ffffff22', fontSize: 13 }}>Aucune transaction</div>}
               {transactions.map(tx => <TxRow key={tx.id} tx={tx} accounts={accounts} pivot={pivot} toPivot={toPivot} onDelete={handleDeleteTx} />)}
             </div>
@@ -946,6 +1000,7 @@ export default function App() {
 
       {showAdd && accounts.length > 0 && <AddModal accounts={accounts.filter(a => a.currency)} categories={categories} onClose={() => setShowAdd(false)} onSave={handleAddTx} />}
       {showAddAccount && <AccountModal onClose={() => setShowAddAccount(false)} onSave={async (a, b) => { await handleSaveAccount(a, b); setShowAddAccount(false) }} />}
+      {showFavModal && <FavoritesModal onDone={saveFavorites} />}
     </div>
   )
 }
