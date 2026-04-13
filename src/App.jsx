@@ -648,7 +648,7 @@ function SettingsPage({ session, profile, accounts, categories, section, onSecti
             )} />
           : <div>
               {accounts.map((acc, i) => (
-                <button key={acc.id} onClick={() => setEditAcct(acc)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', width: '100%', background: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
+                <button key={acc.id} onClick={() => setEditAcct(acc)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 0', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.06)', width: '100%', background: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
                   <AccountAvatar account={acc} size={38} fontSize={13} />
                   <div style={{ flex: 1 }}><div style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{acc.name}</div><div style={{ fontSize: 11, color: '#ffffff44', marginTop: 2 }}>{displayCur(acc.currency)}</div></div>
                   <Icon name="chevron_r" size={16} color="#ffffff33" />
@@ -1014,7 +1014,7 @@ export default function App() {
           </div>
           <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', marginBottom: 18 }} />
           {/* Patrimoine centré — breathing room */}
-          <div style={{ textAlign: 'center', paddingTop: 20, paddingBottom: 24 }}>
+          <div style={{ textAlign: 'center', paddingTop: 28, paddingBottom: 32 }}>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', letterSpacing: '.12em', textTransform: 'uppercase', fontWeight: 600, marginBottom: 8 }}>Patrimoine total</div>
             {dataLoading
               ? <div className="shimmer" style={{ width: 200, height: 44, margin: '0 auto' }} />
@@ -1066,7 +1066,7 @@ export default function App() {
         {page === 'stats' && (
           <div className="fade-up" style={{ paddingBottom: 20 }}>
             <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>Statistiques</div>
-            <div style={{ textAlign: 'center', paddingTop: 20, paddingBottom: 24 }}>
+            <div style={{ textAlign: 'center', paddingTop: 28, paddingBottom: 32 }}>
               <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', letterSpacing: '.12em', textTransform: 'uppercase', fontWeight: 600, marginBottom: 8 }}>Patrimoine total</div>
               {dataLoading
                 ? <div className="shimmer" style={{ width: 200, height: 44, margin: '0 auto' }} />
@@ -1123,7 +1123,7 @@ export default function App() {
       <div className="bnav">
         {[['home', 'house-chimney', 'Accueil'], ['stats', 'curve-arrow', 'Stats']].map(([pg, ic, lb]) => (
           <button key={pg} className={`ni${page === pg ? ' on' : ''}`} onClick={() => go(pg)}>
-            <i className={`fi fi-${page === pg ? 'sr' : 'tr'}-${ic}`} style={{ fontSize: 22, lineHeight: 1, display: 'block' }} />
+            <i className={`fi fi-${page === pg ? 'sr' : 'rr'}-${ic}`} style={{ fontSize: 22, lineHeight: 1, display: 'block' }} />
             <span>{lb}</span>
           </button>
         ))}
@@ -1134,7 +1134,7 @@ export default function App() {
         </button>
         {[['help', 'interrogation', 'Aide'], ['settings', 'settings', 'Réglages']].map(([pg, ic, lb]) => (
           <button key={pg} className={`ni${page === pg ? ' on' : ''}`} onClick={() => go(pg)}>
-            <i className={`fi fi-${page === pg ? 'sr' : 'tr'}-${ic}`} style={{ fontSize: 22, lineHeight: 1, display: 'block' }} />
+            <i className={`fi fi-${page === pg ? 'sr' : 'rr'}-${ic}`} style={{ fontSize: 22, lineHeight: 1, display: 'block' }} />
             <span>{lb}</span>
           </button>
         ))}
