@@ -1014,7 +1014,7 @@ export default function App() {
           </div>
           <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', marginBottom: 18 }} />
           {/* Patrimoine centré — breathing room */}
-          <div style={{ textAlign: 'center', paddingBottom: 22 }}>
+          <div style={{ textAlign: 'center', paddingTop: 20, paddingBottom: 24 }}>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', letterSpacing: '.12em', textTransform: 'uppercase', fontWeight: 600, marginBottom: 8 }}>Patrimoine total</div>
             {dataLoading
               ? <div className="shimmer" style={{ width: 200, height: 44, margin: '0 auto' }} />
@@ -1066,10 +1066,12 @@ export default function App() {
         {page === 'stats' && (
           <div className="fade-up" style={{ paddingBottom: 20 }}>
             <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>Statistiques</div>
-            <div style={{ fontSize: 11, color: '#ffffff44', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 4, marginTop: 16, textAlign: 'center' }}>Patrimoine total</div>
-            {dataLoading
-              ? <div className="shimmer" style={{ width: 160, height: 36, marginBottom: 20, margin: '0 auto 20px' }} />
-              : <div style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-1px', marginBottom: 20, textAlign: 'center' }}>{fmtShort(totalPivot, pivot)}</div>}
+            <div style={{ textAlign: 'center', paddingTop: 20, paddingBottom: 24 }}>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', letterSpacing: '.12em', textTransform: 'uppercase', fontWeight: 600, marginBottom: 8 }}>Patrimoine total</div>
+              {dataLoading
+                ? <div className="shimmer" style={{ width: 200, height: 44, margin: '0 auto' }} />
+                : <div style={{ fontSize: 38, fontWeight: 800, letterSpacing: '-1.5px', lineHeight: 1 }}>{fmtShort(totalPivot, pivot)}</div>}
+            </div>
             <div className="glass" style={{ padding: 20, marginBottom: 16 }}>
               <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 16, color: '#A89CFF' }}>Dépenses par catégorie</div>
               <SpendChart transactions={transactions} categories={categories} pivot={pivot} toPivot={toPivot} />
@@ -1119,9 +1121,9 @@ export default function App() {
 
       {/* ── BOTTOM NAV ── */}
       <div className="bnav">
-        {[['home', 'home', 'Accueil'], ['stats', 'chart', 'Stats']].map(([pg, ic, lb]) => (
+        {[['home', 'house-chimney', 'Accueil'], ['stats', 'curve-arrow', 'Stats']].map(([pg, ic, lb]) => (
           <button key={pg} className={`ni${page === pg ? ' on' : ''}`} onClick={() => go(pg)}>
-            <Icon name={ic} size={22} color={page === pg ? '#A89CFF' : '#ffffff33'} filled={page === pg} />
+            <i className={`fi fi-${page === pg ? 'sr' : 'tr'}-${ic}`} style={{ fontSize: 22, lineHeight: 1, display: 'block' }} />
             <span>{lb}</span>
           </button>
         ))}
@@ -1130,9 +1132,9 @@ export default function App() {
             <Icon name="plus" size={24} color="#fff" />
           </div>
         </button>
-        {[['help', 'help', 'Aide'], ['settings', 'settings', 'Réglages']].map(([pg, ic, lb]) => (
+        {[['help', 'interrogation', 'Aide'], ['settings', 'settings', 'Réglages']].map(([pg, ic, lb]) => (
           <button key={pg} className={`ni${page === pg ? ' on' : ''}`} onClick={() => go(pg)}>
-            <Icon name={ic} size={22} color={page === pg ? '#A89CFF' : '#ffffff33'} filled={page === pg} />
+            <i className={`fi fi-${page === pg ? 'sr' : 'tr'}-${ic}`} style={{ fontSize: 22, lineHeight: 1, display: 'block' }} />
             <span>{lb}</span>
           </button>
         ))}

@@ -47,10 +47,18 @@ export function fmt(n, cur, dec = 2) {
   if (n === null || n === undefined || isNaN(n)) return '—'
   const locale = getLocale()
   try {
-    return new Intl.NumberFormat(locale, {
+    let s = new Intl.NumberFormat(locale, {
       style: 'currency', currency: cur === 'XAF' ? 'XAF' : cur,
       minimumFractionDigits: dec, maximumFractionDigits: dec
     }).format(n)
+    // fr-FR uses thin space (U+202F) or regular space as thousands separator → replace with '.'
+    if (locale === 'fr-FR') s = s.replace(/[\u202F\u00A0 ]/g, (m, i, str) => {
+      // Only replace spaces that are thousands separators (between digits)
+      const before = str[i - 1], after = str[i + 1]
+      if (before >= '0' && before <= '9' && after >= '0' && after <= '9') return '.'
+      return m
+    })
+    return s
   } catch { return `${n.toFixed(dec)} ${displayCur(cur)}` }
 }
 
