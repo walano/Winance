@@ -438,9 +438,11 @@ function AidePage() {
       <div style={{ display: 'grid', gap: 10 }}>
         {faqs.map((f, i) => <FaqItem key={i} q={f.q} r={f.r} />)}
       </div>
-      <button style={{ marginTop: 24, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 20, border: 'none', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, background: 'rgba(108,99,255,0.35)', color: '#A89CFF' }}>
-        <Icon name="mail" size={15} color="#A89CFF" />Contacter le support
-      </button>
+      <div style={{ textAlign: 'center', marginTop: 24 }}>
+        <button style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 20, border: 'none', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, background: 'rgba(108,99,255,0.35)', color: '#A89CFF' }}>
+          <Icon name="mail" size={15} color="#A89CFF" />Contacter le support
+        </button>
+      </div>
     </div>
   )
 }
@@ -464,40 +466,46 @@ function SettingsPage({ session, profile, accounts, categories, onSaveAccount, o
   const [showNewAcct, setShowNewAcct] = useState(false)
   const [editCat, setEditCat] = useState(null)
   const [showNewCat, setShowNewCat] = useState(false)
+  const [selectedAccts, setSelectedAccts] = useState([])
+  const [selectedCats, setSelectedCats] = useState([])
 
-  const back = () => setSection(null)
-  const BackBtn = () => (
-    <button onClick={back} className="btn-g" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, flexShrink: 0 }}>
-      <Icon name="chevron_r" size={14} color="#fff" style={{ transform: 'rotate(180deg)' }} />Retour
-    </button>
-  )
+  function back() { setSection(null); setSelectedAccts([]); setSelectedCats([]) }
+
+  // Back link: "< Titre"
+  function PageTitle({ label }) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
+        <button onClick={back} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#A89CFF', fontSize: 20, fontWeight: 700, padding: 0, lineHeight: 1, fontFamily: 'inherit' }}>‹</button>
+        <div style={{ fontSize: 18, fontWeight: 800, color: '#fff' }}>{label}</div>
+      </div>
+    )
+  }
 
   if (section === 'comptes') {
-    const [selected, setSelected] = useState([])
-    const toggleSel = id => setSelected(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id])
-    const selMode = selected.length > 0
+    const toggleSel = id => setSelectedAccts(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id])
     async function deleteSelected() {
-      if (!window.confirm(`Supprimer ${selected.length} compte(s) ?`)) return
-      for (const id of selected) await onDeleteAccount(id)
-      setSelected([])
+      if (!window.confirm(`Supprimer ${selectedAccts.length} compte(s) ?`)) return
+      for (const id of selectedAccts) await onDeleteAccount(id)
+      setSelectedAccts([])
     }
     return (
       <div className="fade-up" style={{ paddingBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-          <BackBtn />
-          <div style={{ flex: 1 }} />
-          {selMode
-            ? <button onClick={deleteSelected} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#FB7185', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}>Supprimer ({selected.length})</button>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button onClick={back} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#A89CFF', fontSize: 20, fontWeight: 700, padding: 0, lineHeight: 1, fontFamily: 'inherit' }}>‹</button>
+            <div style={{ fontSize: 18, fontWeight: 800 }}>Gérer les comptes</div>
+          </div>
+          {selectedAccts.length > 0
+            ? <button onClick={deleteSelected} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#FB7185', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}>Supprimer ({selectedAccts.length})</button>
             : <button onClick={() => setShowNewAcct(true)} className="btn-g" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}><Icon name="plus" size={14} color="#fff" />Ajouter</button>}
         </div>
-        <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 6 }}>Gérer les comptes</div>
-        <div style={{ fontSize: 12, color: '#ffffff44', marginBottom: 16 }}>Appuyez longuement sur ☰ pour réordonner · appuyez sur un compte pour le sélectionner.</div>
+        <div style={{ fontSize: 12, color: '#ffffff44', marginBottom: 16 }}>☰ pour réordonner · tap pour sélectionner</div>
         <DragList items={accounts} onReorder={onReorderAccounts} renderItem={(acc, dragHandle) => (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', background: selected.includes(acc.id) ? 'rgba(108,99,255,0.08)' : 'transparent', transition: 'background .15s' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', background: selectedAccts.includes(acc.id) ? 'rgba(108,99,255,0.08)' : 'transparent', transition: 'background .15s' }}>
             <div onMouseDown={dragHandle} onTouchStart={dragHandle} style={{ cursor: 'grab', padding: '4px 2px', touchAction: 'none', flexShrink: 0 }}><Icon name="grip" size={16} color="#ffffff33" /></div>
             <button onClick={() => toggleSel(acc.id)} style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
-              <div style={{ width: 18, height: 18, borderRadius: 5, border: `2px solid ${selected.includes(acc.id) ? '#A89CFF' : 'rgba(255,255,255,0.2)'}`, background: selected.includes(acc.id) ? 'rgba(108,99,255,0.35)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all .15s' }}>
-                {selected.includes(acc.id) && <Icon name="check" size={10} color="#A89CFF" />}
+              <div style={{ width: 18, height: 18, borderRadius: 5, border: `2px solid ${selectedAccts.includes(acc.id) ? '#A89CFF' : 'rgba(255,255,255,0.2)'}`, background: selectedAccts.includes(acc.id) ? 'rgba(108,99,255,0.35)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all .15s' }}>
+                {selectedAccts.includes(acc.id) && <Icon name="check" size={10} color="#A89CFF" />}
               </div>
               <AccountAvatar account={acc} size={36} fontSize={12} />
               <div><div style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{acc.name}</div><div style={{ fontSize: 11, color: '#ffffff44' }}>{acc.currency}</div></div>
@@ -511,31 +519,30 @@ function SettingsPage({ session, profile, accounts, categories, onSaveAccount, o
   }
 
   if (section === 'categories') {
-    const [selected, setSelected] = useState([])
-    const toggleSel = id => setSelected(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id])
-    const selMode = selected.length > 0
+    const toggleSel = id => setSelectedCats(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id])
     async function deleteSelected() {
-      if (!window.confirm(`Supprimer ${selected.length} catégorie(s) ?`)) return
-      for (const id of selected) await onDeleteCategory(id)
-      setSelected([])
+      if (!window.confirm(`Supprimer ${selectedCats.length} catégorie(s) ?`)) return
+      for (const id of selectedCats) await onDeleteCategory(id)
+      setSelectedCats([])
     }
     return (
       <div className="fade-up" style={{ paddingBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-          <BackBtn />
-          <div style={{ flex: 1 }} />
-          {selMode
-            ? <button onClick={deleteSelected} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#FB7185', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}>Supprimer ({selected.length})</button>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button onClick={back} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#A89CFF', fontSize: 20, fontWeight: 700, padding: 0, lineHeight: 1, fontFamily: 'inherit' }}>‹</button>
+            <div style={{ fontSize: 18, fontWeight: 800 }}>Gérer les catégories</div>
+          </div>
+          {selectedCats.length > 0
+            ? <button onClick={deleteSelected} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#FB7185', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}>Supprimer ({selectedCats.length})</button>
             : <button onClick={() => setShowNewCat(true)} className="btn-g" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}><Icon name="plus" size={14} color="#fff" />Ajouter</button>}
         </div>
-        <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 6 }}>Gérer les catégories</div>
-        <div style={{ fontSize: 12, color: '#ffffff44', marginBottom: 16 }}>Appuyez longuement sur ☰ pour réordonner · appuyez sur une catégorie pour la sélectionner.</div>
+        <div style={{ fontSize: 12, color: '#ffffff44', marginBottom: 16 }}>☰ pour réordonner · tap pour sélectionner</div>
         <DragList items={categories} onReorder={onReorderCategories} renderItem={(cat, dragHandle) => (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', background: selected.includes(cat.id) ? 'rgba(108,99,255,0.08)' : 'transparent', transition: 'background .15s' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', background: selectedCats.includes(cat.id) ? 'rgba(108,99,255,0.08)' : 'transparent', transition: 'background .15s' }}>
             <div onMouseDown={dragHandle} onTouchStart={dragHandle} style={{ cursor: 'grab', padding: '4px 2px', touchAction: 'none', flexShrink: 0 }}><Icon name="grip" size={16} color="#ffffff33" /></div>
             <button onClick={() => toggleSel(cat.id)} style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
-              <div style={{ width: 18, height: 18, borderRadius: 5, border: `2px solid ${selected.includes(cat.id) ? '#A89CFF' : 'rgba(255,255,255,0.2)'}`, background: selected.includes(cat.id) ? 'rgba(108,99,255,0.35)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all .15s' }}>
-                {selected.includes(cat.id) && <Icon name="check" size={10} color="#A89CFF" />}
+              <div style={{ width: 18, height: 18, borderRadius: 5, border: `2px solid ${selectedCats.includes(cat.id) ? '#A89CFF' : 'rgba(255,255,255,0.2)'}`, background: selectedCats.includes(cat.id) ? 'rgba(108,99,255,0.35)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all .15s' }}>
+                {selectedCats.includes(cat.id) && <Icon name="check" size={10} color="#A89CFF" />}
               </div>
               <div style={{ width: 10, height: 10, borderRadius: '50%', background: cat.color, flexShrink: 0 }} />
               <div style={{ fontSize: 14, fontWeight: 600, color: '#fff' }}>{cat.name}</div>
@@ -550,8 +557,7 @@ function SettingsPage({ session, profile, accounts, categories, onSaveAccount, o
 
   if (section === 'cgv') return (
     <div className="fade-up" style={{ paddingBottom: 20 }}>
-      <BackBtn />
-      <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 20 }}>Conditions d'utilisation</div>
+      <PageTitle label="Conditions d'utilisation" />
       <div style={{ fontSize: 13, color: '#ffffff88', lineHeight: 1.8 }}>
         <p style={{ marginBottom: 12 }}><strong style={{ color: '#fff' }}>1. Objet</strong><br />Winance est une application gratuite de gestion financière personnelle. Aucune transaction commerciale n'est effectuée via la plateforme.</p>
         <p style={{ marginBottom: 12 }}><strong style={{ color: '#fff' }}>2. Accès au service</strong><br />L'accès à Winance est gratuit et nécessite un compte Google. Le service est disponible sans engagement de durée.</p>
@@ -563,8 +569,7 @@ function SettingsPage({ session, profile, accounts, categories, onSaveAccount, o
 
   if (section === 'confidentialite') return (
     <div className="fade-up" style={{ paddingBottom: 20 }}>
-      <BackBtn />
-      <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 20 }}>Politique de confidentialité</div>
+      <PageTitle label="Politique de confidentialité" />
       <div style={{ fontSize: 13, color: '#ffffff88', lineHeight: 1.8 }}>
         <p style={{ marginBottom: 12 }}><strong style={{ color: '#fff' }}>Données collectées</strong><br />Winance collecte uniquement les données nécessaires au fonctionnement : prénom (via Google), transactions et comptes que tu saisis toi-même.</p>
         <p style={{ marginBottom: 12 }}><strong style={{ color: '#fff' }}>Utilisation des données</strong><br />Tes données sont utilisées exclusivement pour afficher tes informations financières. Elles ne sont jamais vendues, partagées ou utilisées à des fins publicitaires.</p>
@@ -576,8 +581,7 @@ function SettingsPage({ session, profile, accounts, categories, onSaveAccount, o
 
   if (section === 'winance') return (
     <div className="fade-up" style={{ paddingBottom: 20 }}>
-      <BackBtn />
-      <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 24 }}>À propos</div>
+      <PageTitle label="À propos" />
       <div style={{ textAlign: 'center', marginBottom: 24 }}>
         <div style={{ width: 72, height: 72, borderRadius: 20, background: 'linear-gradient(135deg,#6C63FF,#4A42CC)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', boxShadow: '0 12px 32px #6C63FF40' }}>
           <Icon name="wallet" size={32} color="#fff" />
@@ -593,11 +597,10 @@ function SettingsPage({ session, profile, accounts, categories, onSaveAccount, o
     </div>
   )
 
-  // ── Menu principal ──
   const menuItems = [
     { key: 'comptes', label: 'Gérer les comptes' },
     { key: 'categories', label: 'Gérer les catégories' },
-    { key: 'cgv', label: 'Conditions d\'utilisation' },
+    { key: 'cgv', label: "Conditions d'utilisation" },
     { key: 'confidentialite', label: 'Politique de confidentialité' },
     { key: 'winance', label: 'À propos' },
   ]
@@ -605,19 +608,15 @@ function SettingsPage({ session, profile, accounts, categories, onSaveAccount, o
   return (
     <div className="fade-up" style={{ paddingBottom: 20 }}>
       <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 28 }}>Réglages</div>
-
-      {/* Profil */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, paddingBottom: 20, borderBottom: '1px solid rgba(255,255,255,0.08)', marginBottom: 4 }}>
-        <div style={{ width: 48, height: 48, borderRadius: 14, background: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <Icon name="user" size={22} color="#ffffffaa" />
+        <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <Icon name="user" size={20} color="#ffffffaa" />
         </div>
         <div>
           <div style={{ fontSize: 15, fontWeight: 700 }}>{profile?.firstname || '—'}</div>
           <div style={{ fontSize: 12, color: '#ffffff44', marginTop: 2 }}>{session?.user?.email}</div>
         </div>
       </div>
-
-      {/* Menu items */}
       <div>
         {menuItems.map((item, i) => (
           <button key={item.key} onClick={() => setSection(item.key)} className="srow" style={{ borderBottom: i < menuItems.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
@@ -626,10 +625,8 @@ function SettingsPage({ session, profile, accounts, categories, onSaveAccount, o
           </button>
         ))}
       </div>
-
-      {/* Déconnexion */}
       <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: 4 }}>
-        <button onClick={onLogout} className="srow" style={{ color: '#FB7185', width: '100%' }}>
+        <button onClick={onLogout} className="srow" style={{ width: '100%' }}>
           <div style={{ flex: 1, fontSize: 14, fontWeight: 500, color: '#FB7185' }}>Se déconnecter</div>
         </button>
       </div>
@@ -838,10 +835,10 @@ export default function App() {
         {page === 'stats' && (
           <div className="fade-up" style={{ paddingBottom: 20 }}>
             <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>Statistiques</div>
-            <div style={{ fontSize: 11, color: '#ffffff44', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 4, marginTop: 16 }}>Patrimoine total</div>
+            <div style={{ fontSize: 11, color: '#ffffff44', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 4, marginTop: 16, textAlign: 'center' }}>Patrimoine total</div>
             {dataLoading
-              ? <div className="shimmer" style={{ width: 160, height: 36, marginBottom: 20 }} />
-              : <div style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-1px', marginBottom: 20 }}>{fmtShort(totalPivot, pivot)}</div>}
+              ? <div className="shimmer" style={{ width: 160, height: 36, marginBottom: 20, margin: '0 auto 20px' }} />
+              : <div style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-1px', marginBottom: 20, textAlign: 'center' }}>{fmtShort(totalPivot, pivot)}</div>}
             <div className="glass" style={{ padding: 20, marginBottom: 16 }}>
               <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 16, color: '#A89CFF' }}>Dépenses par catégorie</div>
               <SpendChart transactions={transactions} categories={categories} pivot={pivot} toPivot={toPivot} />
