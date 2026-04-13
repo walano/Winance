@@ -125,27 +125,53 @@ function BankCard({ account, balance, pivot, toPivot }) {
 // ─── DRAG & DROP LIST ─────────────────────────────────────────────────────────
 function DragList({ items, onReorder, renderItem }) {
   const [list, setList] = useState(items)
-  const dragIdx = useRef(null)
   const latestList = useRef(items)
+  const dragIdx = useRef(null)
+  const containerRef = useRef(null)
+
   useEffect(() => { setList(items); latestList.current = items }, [items])
+
+  function startDrag(e, i) {
+    e.preventDefault()
+    dragIdx.current = i
+
+    function onMove(ev) {
+      if (dragIdx.current === null) return
+      const y = ev.touches ? ev.touches[0].clientY : ev.clientY
+      const children = containerRef.current ? [...containerRef.current.children] : []
+      const targetIdx = children.findIndex(child => {
+        const r = child.getBoundingClientRect()
+        return y >= r.top && y <= r.bottom
+      })
+      if (targetIdx === -1 || targetIdx === dragIdx.current) return
+      const next = [...latestList.current]
+      const [m] = next.splice(dragIdx.current, 1)
+      next.splice(targetIdx, 0, m)
+      latestList.current = next
+      setList([...next])
+      dragIdx.current = targetIdx
+    }
+
+    function onEnd() {
+      onReorder(latestList.current)
+      dragIdx.current = null
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('touchmove', onMove)
+      document.removeEventListener('mouseup', onEnd)
+      document.removeEventListener('touchend', onEnd)
+    }
+
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('touchmove', onMove, { passive: false })
+    document.addEventListener('mouseup', onEnd)
+    document.addEventListener('touchend', onEnd)
+  }
+
   return (
-    <div style={{ display: 'grid', gap: 8 }}>
+    <div ref={containerRef} style={{ display: 'grid' }}>
       {list.map((item, i) => (
-        <div key={item.id} className="drag-item"
-          draggable
-          onDragStart={() => { dragIdx.current = i }}
-          onDragOver={e => {
-            e.preventDefault()
-            if (dragIdx.current === null || dragIdx.current === i) return
-            const next = [...latestList.current]
-            const [m] = next.splice(dragIdx.current, 1)
-            next.splice(i, 0, m)
-            latestList.current = next
-            setList([...next])
-            dragIdx.current = i
-          }}
-          onDragEnd={() => { dragIdx.current = null; onReorder(latestList.current) }}>
-          {renderItem(item)}
+        <div key={item.id}>
+          {renderItem(item, e => startDrag(e, i))}
         </div>
       ))}
     </div>
@@ -412,13 +438,9 @@ function AidePage() {
       <div style={{ display: 'grid', gap: 10 }}>
         {faqs.map((f, i) => <FaqItem key={i} q={f.q} r={f.r} />)}
       </div>
-      <div style={{ marginTop: 24, padding: '16px', borderRadius: 14, background: 'rgba(108,99,255,0.08)', border: '1px solid rgba(108,99,255,0.2)', display: 'flex', alignItems: 'center', gap: 12 }}>
-        <Icon name="mail" size={18} color="#A89CFF" />
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 600 }}>Contacter le support</div>
-          <div style={{ fontSize: 12, color: '#ffffff44', marginTop: 2 }}>support@winance.app</div>
-        </div>
-      </div>
+      <button style={{ marginTop: 24, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 20, border: 'none', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, background: 'rgba(108,99,255,0.35)', color: '#A89CFF' }}>
+        <Icon name="mail" size={15} color="#A89CFF" />Contacter le support
+      </button>
     </div>
   )
 }
@@ -445,50 +467,86 @@ function SettingsPage({ session, profile, accounts, categories, onSaveAccount, o
 
   const back = () => setSection(null)
   const BackBtn = () => (
-    <button onClick={back} className="btn-g" style={{ marginBottom: 24, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+    <button onClick={back} className="btn-g" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, flexShrink: 0 }}>
       <Icon name="chevron_r" size={14} color="#fff" style={{ transform: 'rotate(180deg)' }} />Retour
     </button>
   )
 
-  if (section === 'comptes') return (
-    <div className="fade-up" style={{ paddingBottom: 20 }}>
-      <BackBtn />
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <div style={{ fontSize: 18, fontWeight: 800 }}>Gérer les comptes</div>
-        <button onClick={() => setShowNewAcct(true)} className="btn-g" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}><Icon name="plus" size={14} color="#fff" />Ajouter</button>
-      </div>
-      <div style={{ fontSize: 12, color: '#ffffff44', marginBottom: 16 }}>Maintenez et glissez pour réordonner.</div>
-      <DragList items={accounts} onReorder={onReorderAccounts} renderItem={acc => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          <Icon name="grip" size={16} color="#ffffff33" style={{ flexShrink: 0 }} />
-          <AccountAvatar account={acc} size={38} fontSize={13} />
-          <div style={{ flex: 1 }}><div style={{ fontSize: 13, fontWeight: 600 }}>{acc.name}</div><div style={{ fontSize: 11, color: '#ffffff44' }}>{acc.currency}</div></div>
-          <button onClick={() => setEditAcct(acc)} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#ffffff55', display: 'flex', padding: 4 }}><Icon name="edit" size={16} color="#ffffff55" /></button>
+  if (section === 'comptes') {
+    const [selected, setSelected] = useState([])
+    const toggleSel = id => setSelected(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id])
+    const selMode = selected.length > 0
+    async function deleteSelected() {
+      if (!window.confirm(`Supprimer ${selected.length} compte(s) ?`)) return
+      for (const id of selected) await onDeleteAccount(id)
+      setSelected([])
+    }
+    return (
+      <div className="fade-up" style={{ paddingBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+          <BackBtn />
+          <div style={{ flex: 1 }} />
+          {selMode
+            ? <button onClick={deleteSelected} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#FB7185', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}>Supprimer ({selected.length})</button>
+            : <button onClick={() => setShowNewAcct(true)} className="btn-g" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}><Icon name="plus" size={14} color="#fff" />Ajouter</button>}
         </div>
-      )} />
-      {(showNewAcct || editAcct) && <AccountModal initial={editAcct} onClose={() => { setShowNewAcct(false); setEditAcct(null) }} onSave={async (a, b) => { await onSaveAccount(a, b); setShowNewAcct(false); setEditAcct(null) }} onDelete={editAcct ? async id => { await onDeleteAccount(id); setEditAcct(null) } : null} />}
-    </div>
-  )
+        <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 6 }}>Gérer les comptes</div>
+        <div style={{ fontSize: 12, color: '#ffffff44', marginBottom: 16 }}>Appuyez longuement sur ☰ pour réordonner · appuyez sur un compte pour le sélectionner.</div>
+        <DragList items={accounts} onReorder={onReorderAccounts} renderItem={(acc, dragHandle) => (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', background: selected.includes(acc.id) ? 'rgba(108,99,255,0.08)' : 'transparent', transition: 'background .15s' }}>
+            <div onMouseDown={dragHandle} onTouchStart={dragHandle} style={{ cursor: 'grab', padding: '4px 2px', touchAction: 'none', flexShrink: 0 }}><Icon name="grip" size={16} color="#ffffff33" /></div>
+            <button onClick={() => toggleSel(acc.id)} style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
+              <div style={{ width: 18, height: 18, borderRadius: 5, border: `2px solid ${selected.includes(acc.id) ? '#A89CFF' : 'rgba(255,255,255,0.2)'}`, background: selected.includes(acc.id) ? 'rgba(108,99,255,0.35)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all .15s' }}>
+                {selected.includes(acc.id) && <Icon name="check" size={10} color="#A89CFF" />}
+              </div>
+              <AccountAvatar account={acc} size={36} fontSize={12} />
+              <div><div style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{acc.name}</div><div style={{ fontSize: 11, color: '#ffffff44' }}>{acc.currency}</div></div>
+            </button>
+            <button onClick={() => setEditAcct(acc)} style={{ cursor: 'pointer', background: 'none', border: 'none', display: 'flex', padding: 4, flexShrink: 0 }}><Icon name="edit" size={15} color="#ffffff44" /></button>
+          </div>
+        )} />
+        {(showNewAcct || editAcct) && <AccountModal initial={editAcct} onClose={() => { setShowNewAcct(false); setEditAcct(null) }} onSave={async (a, b) => { await onSaveAccount(a, b); setShowNewAcct(false); setEditAcct(null) }} onDelete={editAcct ? async id => { await onDeleteAccount(id); setEditAcct(null) } : null} />}
+      </div>
+    )
+  }
 
-  if (section === 'categories') return (
-    <div className="fade-up" style={{ paddingBottom: 20 }}>
-      <BackBtn />
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <div style={{ fontSize: 18, fontWeight: 800 }}>Gérer les catégories</div>
-        <button onClick={() => setShowNewCat(true)} className="btn-g" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}><Icon name="plus" size={14} color="#fff" />Ajouter</button>
-      </div>
-      <div style={{ fontSize: 12, color: '#ffffff44', marginBottom: 16 }}>Maintenez et glissez pour réordonner.</div>
-      <DragList items={categories} onReorder={onReorderCategories} renderItem={cat => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          <Icon name="grip" size={16} color="#ffffff33" style={{ flexShrink: 0 }} />
-          <div style={{ width: 10, height: 10, borderRadius: '50%', background: cat.color, flexShrink: 0 }} />
-          <div style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>{cat.name}</div>
-          <button onClick={() => setEditCat(cat)} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#ffffff55', display: 'flex', padding: 4 }}><Icon name="edit" size={16} color="#ffffff55" /></button>
+  if (section === 'categories') {
+    const [selected, setSelected] = useState([])
+    const toggleSel = id => setSelected(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id])
+    const selMode = selected.length > 0
+    async function deleteSelected() {
+      if (!window.confirm(`Supprimer ${selected.length} catégorie(s) ?`)) return
+      for (const id of selected) await onDeleteCategory(id)
+      setSelected([])
+    }
+    return (
+      <div className="fade-up" style={{ paddingBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+          <BackBtn />
+          <div style={{ flex: 1 }} />
+          {selMode
+            ? <button onClick={deleteSelected} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#FB7185', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}>Supprimer ({selected.length})</button>
+            : <button onClick={() => setShowNewCat(true)} className="btn-g" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}><Icon name="plus" size={14} color="#fff" />Ajouter</button>}
         </div>
-      )} />
-      {(showNewCat || editCat) && <CategoryModal initial={editCat} onClose={() => { setShowNewCat(false); setEditCat(null) }} onSave={async c => { await onSaveCategory(c); setShowNewCat(false); setEditCat(null) }} onDelete={editCat ? async id => { await onDeleteCategory(id); setEditCat(null) } : null} />}
-    </div>
-  )
+        <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 6 }}>Gérer les catégories</div>
+        <div style={{ fontSize: 12, color: '#ffffff44', marginBottom: 16 }}>Appuyez longuement sur ☰ pour réordonner · appuyez sur une catégorie pour la sélectionner.</div>
+        <DragList items={categories} onReorder={onReorderCategories} renderItem={(cat, dragHandle) => (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', background: selected.includes(cat.id) ? 'rgba(108,99,255,0.08)' : 'transparent', transition: 'background .15s' }}>
+            <div onMouseDown={dragHandle} onTouchStart={dragHandle} style={{ cursor: 'grab', padding: '4px 2px', touchAction: 'none', flexShrink: 0 }}><Icon name="grip" size={16} color="#ffffff33" /></div>
+            <button onClick={() => toggleSel(cat.id)} style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
+              <div style={{ width: 18, height: 18, borderRadius: 5, border: `2px solid ${selected.includes(cat.id) ? '#A89CFF' : 'rgba(255,255,255,0.2)'}`, background: selected.includes(cat.id) ? 'rgba(108,99,255,0.35)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all .15s' }}>
+                {selected.includes(cat.id) && <Icon name="check" size={10} color="#A89CFF" />}
+              </div>
+              <div style={{ width: 10, height: 10, borderRadius: '50%', background: cat.color, flexShrink: 0 }} />
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#fff' }}>{cat.name}</div>
+            </button>
+            <button onClick={() => setEditCat(cat)} style={{ cursor: 'pointer', background: 'none', border: 'none', display: 'flex', padding: 4, flexShrink: 0 }}><Icon name="edit" size={15} color="#ffffff44" /></button>
+          </div>
+        )} />
+        {(showNewCat || editCat) && <CategoryModal initial={editCat} onClose={() => { setShowNewCat(false); setEditCat(null) }} onSave={async c => { await onSaveCategory(c); setShowNewCat(false); setEditCat(null) }} onDelete={editCat ? async id => { await onDeleteCategory(id); setEditCat(null) } : null} />}
+      </div>
+    )
+  }
 
   if (section === 'cgv') return (
     <div className="fade-up" style={{ paddingBottom: 20 }}>
@@ -719,8 +777,8 @@ export default function App() {
     <div className="app">
       <style>{CSS}</style>
 
-      {/* ── HEADER — accueil & stats uniquement ── */}
-      {(page === 'home' || page === 'stats') && (
+      {/* ── HEADER — accueil uniquement ── */}
+      {page === 'home' && (
         <div style={{ padding: '24px 20px 0' }}>
           <div style={{ fontSize: 13, color: '#ffffff55', fontWeight: 500 }}>Bonsoir,</div>
           <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.5px', marginBottom: 16 }}>{firstname}</div>
@@ -737,7 +795,7 @@ export default function App() {
         </div>
       )}
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px', paddingBottom: 90 }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px', paddingTop: page === 'home' ? 0 : 24, paddingBottom: 90 }}>
 
         {/* ── ACCUEIL ── */}
         {page === 'home' && (
@@ -779,7 +837,11 @@ export default function App() {
         {/* ── STATS ── */}
         {page === 'stats' && (
           <div className="fade-up" style={{ paddingBottom: 20 }}>
-            <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 20 }}>Statistiques</div>
+            <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>Statistiques</div>
+            <div style={{ fontSize: 11, color: '#ffffff44', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 4, marginTop: 16 }}>Patrimoine total</div>
+            {dataLoading
+              ? <div className="shimmer" style={{ width: 160, height: 36, marginBottom: 20 }} />
+              : <div style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-1px', marginBottom: 20 }}>{fmtShort(totalPivot, pivot)}</div>}
             <div className="glass" style={{ padding: 20, marginBottom: 16 }}>
               <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 16, color: '#A89CFF' }}>Dépenses par catégorie</div>
               <SpendChart transactions={transactions} categories={categories} pivot={pivot} toPivot={toPivot} />
