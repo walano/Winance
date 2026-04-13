@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell } from 'recharts'
 import { supabase } from './lib/supabase'
-import { fmt, fmtShort, isXAF, initials, greeting, displayCur, ALL_CURRENCIES, PIVOT_CURRENCIES, CURRENCIES, PALETTE, FALLBACK_RATES } from './lib/utils'
+import { fmt, fmtShort, isXAF, initials, greeting, displayCur, getLocale, ALL_CURRENCIES, PIVOT_CURRENCIES, CURRENCIES, PALETTE, FALLBACK_RATES } from './lib/utils'
 import AuthPage from './pages/AuthPage'
 
 // ─── ICON ─────────────────────────────────────────────────────────────────────
-const Icon = ({ name, size = 18, color = 'currentColor', style: sx = {} }) => {
+const Icon = ({ name, size = 18, color = 'currentColor', style: sx = {}, filled = false }) => {
   const s = { width: size, height: size, display: 'block', flexShrink: 0, ...sx }
   const p = {
     home:      <><path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z" stroke={color} strokeWidth="1.5" fill="none"/><path d="M9 21V12h6v9" stroke={color} strokeWidth="1.5" fill="none"/></>,
@@ -31,7 +31,14 @@ const Icon = ({ name, size = 18, color = 'currentColor', style: sx = {} }) => {
     warning:   <><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke={color} strokeWidth="1.5" fill="none"/><path d="M12 9v4M12 17h.01" stroke={color} strokeWidth="1.5" strokeLinecap="round"/></>,
     mail:      <><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke={color} strokeWidth="1.5" fill="none"/><polyline points="22,6 12,13 2,6" stroke={color} strokeWidth="1.5" fill="none"/></>,
   }
-  return <svg viewBox="0 0 24 24" style={s}>{p[name] || p.tag}</svg>
+  // Filled variants for nav icons
+  const pf = {
+    home:     <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" fill={color}/>,
+    chart:    <><rect x="4" y="10" width="4" height="10" rx="1" fill={color}/><rect x="10" y="5" width="4" height="15" rx="1" fill={color}/><rect x="16" y="13" width="4" height="7" rx="1" fill={color}/></>,
+    help:     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z" fill={color}/>,
+    settings: <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" fill={color}/>,
+  }
+  return <svg viewBox="0 0 24 24" style={s}>{(filled && pf[name]) ? pf[name] : (p[name] || p.tag)}</svg>
 }
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
@@ -185,7 +192,7 @@ function DragList({ items, onReorder, renderItem }) {
 }
 
 // ─── ACCOUNT MODAL ────────────────────────────────────────────────────────────
-function AccountModal({ initial, onClose, onSave, onDelete }) {
+function AccountModal({ initial, onClose, onBack, onSave, onDelete }) {
   const [name, setName] = useState(initial?.name || '')
   const [currency, setCurrency] = useState(initial?.currency || 'XAF')
   const [color, setColor] = useState(initial?.color || PALETTE[0])
@@ -194,21 +201,26 @@ function AccountModal({ initial, onClose, onSave, onDelete }) {
   const [loading, setLoading] = useState(false)
   const fileRef = useRef()
   const isEdit = !!initial
+  const dirty = isEdit && (name !== initial.name || currency !== initial.currency || color !== initial.color || svgData !== initial.svg_data)
   function handleFile(e) { const f = e.target.files[0]; if (!f) return; const fr = new FileReader(); fr.onload = ev => setSvgData(ev.target.result); fr.readAsDataURL(f) }
   async function save() { if (!name.trim()) return; setLoading(true); await onSave({ id: initial?.id, name: name.trim(), currency, color, svg_data: svgData }, isEdit ? null : parseFloat(initBal) || 0); setLoading(false) }
+  const handleClose = onBack || onClose
   return (
-    <div className="modal-bg" onClick={onClose}>
+    <div className="modal-bg" onClick={handleClose}>
       <div className="sheet slide-in" onClick={e => e.stopPropagation()}>
         <div className="handle" />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-          <div style={{ fontSize: 18, fontWeight: 800 }}>{isEdit ? 'Modifier le compte' : 'Nouveau compte'}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {onBack && <button onClick={onBack} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#A89CFF', fontSize: 20, fontWeight: 700, padding: 0, lineHeight: 1, fontFamily: 'inherit' }}>‹</button>}
+            <div style={{ fontSize: 18, fontWeight: 800 }}>{isEdit ? 'Modifier le compte' : 'Nouveau compte'}</div>
+          </div>
           <button className="btn-g" style={{ padding: '6px 10px', borderRadius: 10, display: 'flex' }} onClick={onClose}><Icon name="x" size={16} color="#fff" /></button>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 24, padding: '14px 16px', borderRadius: 14, background: 'rgba(255,255,255,0.04)' }}>
           <div style={{ width: 52, height: 52, borderRadius: 15, background: `${color}22`, border: `2px solid ${color}66`, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
             {svgData ? <img src={svgData} style={{ width: 34, height: 34, objectFit: 'contain' }} alt="" /> : <span style={{ fontSize: 17, fontWeight: 800, color }}>{initials(name) || '?'}</span>}
           </div>
-          <div><div style={{ fontSize: 15, fontWeight: 700 }}>{name || 'Nom du compte'}</div><div style={{ fontSize: 12, color: '#ffffff55', marginTop: 2 }}>{currency}</div></div>
+          <div><div style={{ fontSize: 15, fontWeight: 700 }}>{name || 'Nom du compte'}</div><div style={{ fontSize: 12, color: '#ffffff55', marginTop: 2 }}>{displayCur(currency)}</div></div>
         </div>
         <div style={{ marginBottom: 16 }}><label className="lbl">Nom du compte</label><input className="inp" placeholder="ex. Airtel Money, Wave..." value={name} onChange={e => setName(e.target.value)} autoFocus /></div>
         <div style={{ marginBottom: 16 }}><label className="lbl">Devise</label><select className="inp" value={currency} onChange={e => setCurrency(e.target.value)}>{ALL_CURRENCIES.map(c => <option key={c} value={c}>{displayCur(c)}</option>)}</select></div>
@@ -230,10 +242,10 @@ function AccountModal({ initial, onClose, onSave, onDelete }) {
           </div>
           <input ref={fileRef} type="file" accept="image/svg+xml,image/png,image/jpeg" style={{ display: 'none' }} onChange={handleFile} />
         </div>
-        {!isEdit && <div style={{ marginBottom: 24 }}><label className="lbl">Solde initial ({currency})</label><input className="inp" type="number" placeholder="0.00" value={initBal} onChange={e => setInitBal(e.target.value)} /></div>}
+        {!isEdit && <div style={{ marginBottom: 24 }}><label className="lbl">Solde initial ({displayCur(currency)})</label><input className="inp" type="number" placeholder="0.00" value={initBal} onChange={e => setInitBal(e.target.value)} /></div>}
         <div style={{ display: 'flex', gap: 10 }}>
           {isEdit && onDelete && <button onClick={() => onDelete(initial.id)} className="btn-d" style={{ padding: '14px 16px', borderRadius: 14, display: 'flex', alignItems: 'center' }}><Icon name="trash" size={15} color="#FB7185" /></button>}
-          <button onClick={save} disabled={loading} className="btn-p">{loading ? 'Sauvegarde...' : isEdit ? 'Enregistrer' : 'Créer le compte'}</button>
+          <button onClick={save} disabled={loading} className="btn-p" style={dirty ? { boxShadow: '0 8px 32px #6C63FF66, 0 0 0 2px #A89CFF55' } : {}}>{loading ? 'Sauvegarde...' : isEdit ? 'Enregistrer' : 'Créer le compte'}</button>
         </div>
       </div>
     </div>
@@ -241,17 +253,22 @@ function AccountModal({ initial, onClose, onSave, onDelete }) {
 }
 
 // ─── CATEGORY MODAL ───────────────────────────────────────────────────────────
-function CategoryModal({ initial, onClose, onSave, onDelete }) {
+function CategoryModal({ initial, onClose, onBack, onSave, onDelete }) {
   const [name, setName] = useState(initial?.name || '')
   const [color, setColor] = useState(initial?.color || PALETTE[0])
   const isEdit = !!initial
+  const dirty = isEdit && (name !== initial.name || color !== initial.color)
+  const handleClose = onBack || onClose
   async function save() { if (!name.trim()) return; await onSave({ id: initial?.id, name: name.trim(), color }) }
   return (
-    <div className="modal-bg" onClick={onClose}>
+    <div className="modal-bg" onClick={handleClose}>
       <div className="sheet slide-in" onClick={e => e.stopPropagation()}>
         <div className="handle" />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-          <div style={{ fontSize: 18, fontWeight: 800 }}>{isEdit ? 'Modifier la catégorie' : 'Nouvelle catégorie'}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {onBack && <button onClick={onBack} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#A89CFF', fontSize: 20, fontWeight: 700, padding: 0, lineHeight: 1, fontFamily: 'inherit' }}>‹</button>}
+            <div style={{ fontSize: 18, fontWeight: 800 }}>{isEdit ? 'Modifier la catégorie' : 'Nouvelle catégorie'}</div>
+          </div>
           <button className="btn-g" style={{ padding: '6px 10px', borderRadius: 10, display: 'flex' }} onClick={onClose}><Icon name="x" size={16} color="#fff" /></button>
         </div>
         <div style={{ marginBottom: 16 }}><label className="lbl">Nom</label><input className="inp" placeholder="ex. Électricité, Abonnements..." value={name} onChange={e => setName(e.target.value)} autoFocus /></div>
@@ -267,7 +284,7 @@ function CategoryModal({ initial, onClose, onSave, onDelete }) {
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           {isEdit && onDelete && <button onClick={() => onDelete(initial.id)} className="btn-d" style={{ padding: '14px 16px', borderRadius: 14, display: 'flex', alignItems: 'center' }}><Icon name="trash" size={15} color="#FB7185" /></button>}
-          <button onClick={save} className="btn-p">{isEdit ? 'Enregistrer' : 'Créer'}</button>
+          <button onClick={save} className="btn-p" style={dirty ? { boxShadow: '0 8px 32px #6C63FF66, 0 0 0 2px #A89CFF55' } : {}}>{isEdit ? 'Enregistrer' : 'Créer'}</button>
         </div>
       </div>
     </div>
@@ -275,16 +292,19 @@ function CategoryModal({ initial, onClose, onSave, onDelete }) {
 }
 
 // ─── ADD TX MODAL ─────────────────────────────────────────────────────────────
-function AddModal({ accounts, categories, onClose, onSave }) {
-  const [form, setForm] = useState({ accountId: accounts[0]?.id || '', amount: '', currency: accounts[0]?.currency || 'XAF', type: 'expense', categoryId: '', note: '', date: new Date().toISOString().split('T')[0] })
+function AddModal({ accounts, categories, onClose, onSave, rates, pivot }) {
+  const today = new Date().toISOString().split('T')[0]
+  const [form, setForm] = useState({ accountId: accounts[0]?.id || '', toAccountId: accounts[1]?.id || accounts[0]?.id || '', amount: '', currency: accounts[0]?.currency || 'XAF', type: 'expense', categoryId: '', note: '', date: today })
   const [errors, setErrors] = useState({})
   const [loading, setLoading] = useState(false)
+  const isTransfer = form.type === 'transfer'
   function set(k, v) { setForm(f => ({ ...f, [k]: v })); setErrors(e => ({ ...e, [k]: false })) }
 
   function validate() {
     const e = {}
     if (!form.amount || isNaN(parseFloat(form.amount))) e.amount = 'Montant requis'
-    if (!form.note.trim()) e.note = 'La note est obligatoire'
+    if (!isTransfer && !form.note.trim()) e.note = 'La note est obligatoire'
+    if (isTransfer && form.accountId === form.toAccountId) e.toAccountId = 'Comptes différents requis'
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -292,9 +312,24 @@ function AddModal({ accounts, categories, onClose, onSave }) {
   async function save() {
     if (!validate()) return
     setLoading(true)
-    const sign = form.type === 'expense' ? -1 : 1
-    const cat = categories.find(c => c.id === form.categoryId)
-    await onSave({ account_id: form.accountId, amount: sign * Math.abs(parseFloat(form.amount)), currency: form.currency, type: form.type, category_id: form.categoryId || null, category_name: cat?.name || '', category_color: cat?.color || '#6C63FF', note: form.note.trim(), date: form.date })
+    const amt = Math.abs(parseFloat(form.amount))
+    if (isTransfer) {
+      const fromAcc = accounts.find(a => a.id === form.accountId)
+      const toAcc = accounts.find(a => a.id === form.toAccountId)
+      // Convert amount from form.currency to each account's currency
+      const toUSD = (n, cur) => (rates[cur] ? n / rates[cur] : n)
+      const fromPivot = (n, cur) => toUSD(n, form.currency) * (rates[cur] || 1)
+      const fromAmt = fromAcc?.currency ? fromPivot(amt, fromAcc.currency) : amt
+      const toAmt = toAcc?.currency ? fromPivot(amt, toAcc.currency) : amt
+      await onSave([
+        { account_id: form.accountId, amount: -fromAmt, currency: fromAcc?.currency || form.currency, type: 'transfer', category_name: 'Transfert', category_color: '#A855F7', note: `→ ${toAcc?.name || '?'}`, date: form.date },
+        { account_id: form.toAccountId, amount: toAmt, currency: toAcc?.currency || form.currency, type: 'transfer', category_name: 'Transfert', category_color: '#A855F7', note: `← ${fromAcc?.name || '?'}`, date: form.date },
+      ])
+    } else {
+      const sign = form.type === 'expense' ? -1 : 1
+      const cat = categories.find(c => c.id === form.categoryId)
+      await onSave({ account_id: form.accountId, amount: sign * amt, currency: form.currency, type: form.type, category_id: form.categoryId || null, category_name: cat?.name || '', category_color: cat?.color || '#6C63FF', note: form.note.trim(), date: form.date })
+    }
     setLoading(false)
   }
 
@@ -317,43 +352,68 @@ function AddModal({ accounts, categories, onClose, onSave }) {
           </div>
         </div>
 
-        {/* Compte */}
-        <div style={{ marginBottom: 18 }}><label className="lbl">Compte</label>
-          <select className="inp" value={form.accountId} onChange={e => { const a = accounts.find(x => x.id === e.target.value); set('accountId', e.target.value); if (a?.currency) set('currency', a.currency) }}>
-            {accounts.map(a => <option key={a.id} value={a.id}>{a.name} ({a.currency})</option>)}
-          </select>
-        </div>
-
-        {/* Montant */}
-        <div style={{ marginBottom: 18 }}>
-          <label className="lbl">Montant</label>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <input className={`inp${errors.amount ? ' err' : ''}`} type="number" placeholder="0.00" value={form.amount} onChange={e => set('amount', e.target.value)} style={{ flex: 1, minWidth: 0 }} />
-            <select className="inp" value={form.currency} onChange={e => set('currency', e.target.value)} style={{ width: 100, flexShrink: 0 }}>{ALL_CURRENCIES.map(c => <option key={c} value={c}>{displayCur(c)}</option>)}</select>
-          </div>
-          {errors.amount && <div className="err-msg">{errors.amount}</div>}
-          <div style={{ fontSize: 12, color: '#ffffff33', marginTop: 6 }}>Saisie dans n'importe quelle devise — conversion automatique.</div>
-        </div>
-
-        {/* Catégorie */}
-        <div style={{ marginBottom: 18 }}>
-          <label className="lbl">Catégorie</label>
-          {categories.length === 0
-            ? <div style={{ fontSize: 13, color: '#ffffff44', padding: '12px 0' }}>Aucune catégorie. Crées-en une dans les Paramètres.</div>
-            : <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {categories.map(c => (
-                <button key={c.id} onClick={() => set('categoryId', c.id)} style={{ cursor: 'pointer', padding: '8px 14px', borderRadius: 20, border: 'none', fontFamily: 'inherit', fontSize: 14, fontWeight: 600, transition: 'all .15s', background: form.categoryId === c.id ? 'rgba(108,99,255,0.35)' : 'transparent', color: form.categoryId === c.id ? '#A89CFF' : '#ffffff55' }}>{c.name}</button>
-              ))}
-            </div>}
-          {errors.categoryId && <div className="err-msg">{errors.categoryId}</div>}
-        </div>
-
-        {/* Note */}
-        <div style={{ marginBottom: 18 }}>
-          <label className="lbl">Note <span style={{ color: '#F43F5E' }}>*</span></label>
-          <input className={`inp${errors.note ? ' err' : ''}`} placeholder="ex. Courses au marché, Facture électricité..." value={form.note} onChange={e => set('note', e.target.value)} />
-          {errors.note && <div className="err-msg">{errors.note}</div>}
-        </div>
+        {isTransfer ? (
+          <>
+            {/* Transfer: from → to */}
+            <div style={{ marginBottom: 18 }}>
+              <label className="lbl">Compte source</label>
+              <select className="inp" value={form.accountId} onChange={e => { const a = accounts.find(x => x.id === e.target.value); set('accountId', e.target.value); if (a?.currency) set('currency', a.currency) }}>
+                {accounts.map(a => <option key={a.id} value={a.id}>{a.name} ({displayCur(a.currency)})</option>)}
+              </select>
+            </div>
+            <div style={{ marginBottom: 18 }}>
+              <label className="lbl">Montant transféré</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input className={`inp${errors.amount ? ' err' : ''}`} type="number" placeholder="0.00" value={form.amount} onChange={e => set('amount', e.target.value)} style={{ flex: 1, minWidth: 0 }} />
+                <select className="inp" value={form.currency} onChange={e => set('currency', e.target.value)} style={{ width: 100, flexShrink: 0 }}>{ALL_CURRENCIES.map(c => <option key={c} value={c}>{displayCur(c)}</option>)}</select>
+              </div>
+              {errors.amount && <div className="err-msg">{errors.amount}</div>}
+            </div>
+            <div style={{ marginBottom: 18 }}>
+              <label className="lbl">Compte destinataire</label>
+              <select className="inp" value={form.toAccountId} onChange={e => set('toAccountId', e.target.value)}>
+                {accounts.map(a => <option key={a.id} value={a.id}>{a.name} ({displayCur(a.currency)})</option>)}
+              </select>
+              {errors.toAccountId && <div className="err-msg">{errors.toAccountId}</div>}
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Compte */}
+            <div style={{ marginBottom: 18 }}><label className="lbl">Compte</label>
+              <select className="inp" value={form.accountId} onChange={e => { const a = accounts.find(x => x.id === e.target.value); set('accountId', e.target.value); if (a?.currency) set('currency', a.currency) }}>
+                {accounts.map(a => <option key={a.id} value={a.id}>{a.name} ({displayCur(a.currency)})</option>)}
+              </select>
+            </div>
+            {/* Montant */}
+            <div style={{ marginBottom: 18 }}>
+              <label className="lbl">Montant</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input className={`inp${errors.amount ? ' err' : ''}`} type="number" placeholder="0.00" value={form.amount} onChange={e => set('amount', e.target.value)} style={{ flex: 1, minWidth: 0 }} />
+                <select className="inp" value={form.currency} onChange={e => set('currency', e.target.value)} style={{ width: 100, flexShrink: 0 }}>{ALL_CURRENCIES.map(c => <option key={c} value={c}>{displayCur(c)}</option>)}</select>
+              </div>
+              {errors.amount && <div className="err-msg">{errors.amount}</div>}
+              <div style={{ fontSize: 12, color: '#ffffff33', marginTop: 6 }}>Saisie dans n'importe quelle devise — conversion automatique.</div>
+            </div>
+            {/* Catégorie */}
+            <div style={{ marginBottom: 18 }}>
+              <label className="lbl">Catégorie</label>
+              {categories.length === 0
+                ? <div style={{ fontSize: 13, color: '#ffffff44', padding: '12px 0' }}>Aucune catégorie. Crées-en une dans les Paramètres.</div>
+                : <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {categories.map(c => (
+                    <button key={c.id} onClick={() => set('categoryId', c.id)} style={{ cursor: 'pointer', padding: '8px 14px', borderRadius: 20, border: 'none', fontFamily: 'inherit', fontSize: 14, fontWeight: 600, transition: 'all .15s', background: form.categoryId === c.id ? 'rgba(108,99,255,0.35)' : 'transparent', color: form.categoryId === c.id ? '#A89CFF' : '#ffffff55' }}>{c.name}</button>
+                  ))}
+                </div>}
+            </div>
+            {/* Note */}
+            <div style={{ marginBottom: 18 }}>
+              <label className="lbl">Note <span style={{ color: '#F43F5E' }}>*</span></label>
+              <input className={`inp${errors.note ? ' err' : ''}`} placeholder="ex. Courses au marché, Facture électricité..." value={form.note} onChange={e => set('note', e.target.value)} />
+              {errors.note && <div className="err-msg">{errors.note}</div>}
+            </div>
+          </>
+        )}
 
         {/* Date */}
         <div style={{ marginBottom: 28 }}>
@@ -370,25 +430,61 @@ function AddModal({ accounts, categories, onClose, onSave }) {
 }
 
 // ─── TX ROW ───────────────────────────────────────────────────────────────────
-function TxRow({ tx, accounts, pivot, toPivot, onDelete }) {
+function TxRow({ tx, accounts, pivot, toPivot, onDelete, swipeable }) {
   const acc = accounts.find(a => a.id === tx.account_id)
   const amt = Number(tx.amount)
   const pivotAmt = toPivot(amt, tx.currency)
   const col = tx.category_color || '#6C63FF'
+  const [offsetX, setOffsetX] = useState(0)
+  const startX = useRef(null)
+  const elRef = useRef(null)
+  const canSwipe = swipeable && !!onDelete
+
+  useEffect(() => {
+    if (!canSwipe) return
+    const el = elRef.current
+    if (!el) return
+    let sx = null
+    let moving = false
+    function onTS(e) { sx = e.touches[0].clientX; moving = false }
+    function onTM(e) {
+      if (sx === null) return
+      const dx = e.touches[0].clientX - sx
+      if (!moving && Math.abs(dx) < 6) return
+      moving = true
+      if (dx < 0) { e.preventDefault(); setOffsetX(Math.max(dx, -72)) }
+    }
+    function onTE() {
+      if (offsetX < -48) onDelete(tx)
+      else setOffsetX(0)
+      sx = null
+    }
+    el.addEventListener('touchstart', onTS, { passive: true })
+    el.addEventListener('touchmove', onTM, { passive: false })
+    el.addEventListener('touchend', onTE)
+    return () => { el.removeEventListener('touchstart', onTS); el.removeEventListener('touchmove', onTM); el.removeEventListener('touchend', onTE) }
+  }, [canSwipe, onDelete, tx, offsetX])
+
+  const delProg = Math.min(1, Math.abs(offsetX) / 48)
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-      <div style={{ width: 40, height: 40, borderRadius: 12, background: `${col}1a`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-        <span style={{ fontSize: 12, fontWeight: 800, color: col }}>{(tx.category_name || '?').slice(0, 2).toUpperCase()}</span>
+    <div ref={elRef} style={{ position: 'relative', overflow: 'hidden', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+      {canSwipe && <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 72, background: `rgba(244,63,94,${delProg * 0.85})`, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background .1s' }}>
+        <Icon name="trash" size={18} color={`rgba(251,113,133,${delProg})`} />
+      </div>}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 0', transform: `translateX(${offsetX}px)`, transition: startX.current ? 'none' : 'transform .3s' }}>
+        <div style={{ width: 40, height: 40, borderRadius: 12, background: `${col}1a`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <span style={{ fontSize: 12, fontWeight: 800, color: col }}>{(tx.category_name || '?').slice(0, 2).toUpperCase()}</span>
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tx.note || tx.category_name}</div>
+          <div style={{ fontSize: 11, color: '#ffffff33', marginTop: 2 }}>{acc?.name} · {tx.date}</div>
+        </div>
+        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: amt >= 0 ? '#A89CFF' : '#FB7185' }}>{amt >= 0 ? '+' : ''}{fmt(amt, tx.currency, isXAF(tx.currency) ? 0 : 2)}</div>
+          <div style={{ fontSize: 10, color: '#ffffff33', marginTop: 1 }}>{pivotAmt !== null ? `${pivotAmt >= 0 ? '+' : ''}${Math.abs(pivotAmt).toFixed(2)} ${displayCur(pivot)}` : '—'}</div>
+        </div>
       </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tx.note || tx.category_name}</div>
-        <div style={{ fontSize: 11, color: '#ffffff33', marginTop: 2 }}>{acc?.name} · {tx.date}</div>
-      </div>
-      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: amt >= 0 ? '#A89CFF' : '#FB7185' }}>{amt >= 0 ? '+' : ''}{fmt(amt, tx.currency, isXAF(tx.currency) ? 0 : 2)}</div>
-        <div style={{ fontSize: 10, color: '#ffffff33', marginTop: 1 }}>{pivotAmt !== null ? `${pivotAmt >= 0 ? '+' : ''}${Math.abs(pivotAmt).toFixed(2)} ${pivot}` : '—'}</div>
-      </div>
-      {onDelete && <button onClick={() => onDelete(tx)} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#ffffff22', padding: '4px', display: 'flex', flexShrink: 0 }} onMouseOver={e => e.currentTarget.style.color = '#FB7185'} onMouseOut={e => e.currentTarget.style.color = '#ffffff22'}><Icon name="x" size={14} color="currentColor" /></button>}
     </div>
   )
 }
@@ -491,8 +587,7 @@ function FaqItem({ q, r }) {
 }
 
 // ─── PAGE : PARAMÈTRES ────────────────────────────────────────────────────────
-function SettingsPage({ session, profile, accounts, categories, onSaveAccount, onDeleteAccount, onReorderAccounts, onSaveCategory, onDeleteCategory, onReorderCategories, onLogout }) {
-  const [section, setSection] = useState(null)
+function SettingsPage({ session, profile, accounts, categories, section, onSection, locale, onLocale, onSaveAccount, onDeleteAccount, onReorderAccounts, onSaveCategory, onDeleteCategory, onReorderCategories, onLogout }) {
   const [editAcct, setEditAcct] = useState(null)
   const [showNewAcct, setShowNewAcct] = useState(false)
   const [editCat, setEditCat] = useState(null)
@@ -502,7 +597,7 @@ function SettingsPage({ session, profile, accounts, categories, onSaveAccount, o
   const [editModeAccts, setEditModeAccts] = useState(false)
   const [editModeCats, setEditModeCats] = useState(false)
 
-  function back() { setSection(null); setSelectedAccts([]); setSelectedCats([]); setEditModeAccts(false); setEditModeCats(false) }
+  function back() { onSection(null); setSelectedAccts([]); setSelectedCats([]); setEditModeAccts(false); setEditModeCats(false) }
 
   function PageTitle({ label }) {
     return (
@@ -562,7 +657,7 @@ function SettingsPage({ session, profile, accounts, categories, onSaveAccount, o
               {accounts.length === 0 && <div style={{ fontSize: 13, color: '#ffffff44', padding: '20px 0', textAlign: 'center' }}>Aucun compte</div>}
               <button onClick={() => setShowNewAcct(true)} className="btn-g" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, marginTop: 16 }}><Icon name="plus" size={14} color="#fff" />Ajouter un compte</button>
             </div>}
-        {(showNewAcct || editAcct) && <AccountModal initial={editAcct} onClose={() => { setShowNewAcct(false); setEditAcct(null) }} onSave={async (a, b) => { await onSaveAccount(a, b); setShowNewAcct(false); setEditAcct(null) }} onDelete={editAcct ? async id => { await onDeleteAccount(id); setEditAcct(null) } : null} />}
+        {(showNewAcct || editAcct) && <AccountModal initial={editAcct} onBack={editAcct ? () => setEditAcct(null) : () => setShowNewAcct(false)} onClose={() => { setShowNewAcct(false); setEditAcct(null) }} onSave={async (a, b) => { await onSaveAccount(a, b); setShowNewAcct(false); setEditAcct(null) }} onDelete={editAcct ? async id => { await onDeleteAccount(id); setEditAcct(null) } : null} />}
       </div>
     )
   }
@@ -616,7 +711,7 @@ function SettingsPage({ session, profile, accounts, categories, onSaveAccount, o
               {categories.length === 0 && <div style={{ fontSize: 13, color: '#ffffff44', padding: '20px 0', textAlign: 'center' }}>Aucune catégorie</div>}
               <button onClick={() => setShowNewCat(true)} className="btn-g" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, marginTop: 16 }}><Icon name="plus" size={14} color="#fff" />Ajouter une catégorie</button>
             </div>}
-        {(showNewCat || editCat) && <CategoryModal initial={editCat} onClose={() => { setShowNewCat(false); setEditCat(null) }} onSave={async c => { await onSaveCategory(c); setShowNewCat(false); setEditCat(null) }} onDelete={editCat ? async id => { await onDeleteCategory(id); setEditCat(null) } : null} />}
+        {(showNewCat || editCat) && <CategoryModal initial={editCat} onBack={editCat ? () => setEditCat(null) : () => setShowNewCat(false)} onClose={() => { setShowNewCat(false); setEditCat(null) }} onSave={async c => { await onSaveCategory(c); setShowNewCat(false); setEditCat(null) }} onDelete={editCat ? async id => { await onDeleteCategory(id); setEditCat(null) } : null} />}
       </div>
     )
   }
@@ -663,9 +758,26 @@ function SettingsPage({ session, profile, accounts, categories, onSaveAccount, o
     </div>
   )
 
+  if (section === 'locale') return (
+    <div className="fade-up" style={{ paddingBottom: 20 }}>
+      <PageTitle label="Format des nombres" />
+      <div style={{ fontSize: 13, color: '#ffffff55', marginBottom: 20 }}>Choisit comment les montants sont affichés.</div>
+      {[['fr-FR', 'Français', '1 234 567,89'], ['en-US', 'English', '1,234,567.89']].map(([val, lbl, ex]) => (
+        <button key={val} onClick={() => onLocale(val)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '16px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.06)', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#fff' }}>{lbl}</div>
+            <div style={{ fontSize: 12, color: '#ffffff44', marginTop: 2 }}>{ex}</div>
+          </div>
+          {locale === val && <Icon name="check" size={16} color="#A89CFF" />}
+        </button>
+      ))}
+    </div>
+  )
+
   const menuItems = [
     { key: 'comptes', label: 'Gérer les comptes' },
     { key: 'categories', label: 'Gérer les catégories' },
+    { key: 'locale', label: 'Format des nombres' },
     { key: 'cgv', label: "Conditions d'utilisation" },
     { key: 'confidentialite', label: 'Politique de confidentialité' },
     { key: 'winance', label: 'À propos' },
@@ -685,7 +797,7 @@ function SettingsPage({ session, profile, accounts, categories, onSaveAccount, o
       </div>
       <div>
         {menuItems.map((item, i) => (
-          <button key={item.key} onClick={() => setSection(item.key)} className="srow" style={{ borderBottom: i < menuItems.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
+          <button key={item.key} onClick={() => onSection(item.key)} className="srow" style={{ borderBottom: i < menuItems.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
             <div style={{ flex: 1, fontSize: 14, fontWeight: 500, color: '#fff' }}>{item.label}</div>
             <Icon name="chevron_r" size={16} color="#ffffff33" />
           </button>
@@ -709,17 +821,36 @@ export default function App() {
   const [transactions, setTransactions] = useState([])
   const [categories, setCategories] = useState([])
   const [pivot, setPivot] = useState('XAF')
-  const [page, setPage] = useState('home')
+  const [page, setPage] = useState(() => { const h = window.location.hash.slice(1).split('/')[0]; return h || 'home' })
+  const [settingsSection, setSettingsSection] = useState(() => { const p = window.location.hash.slice(1).split('/'); return p[0] === 'settings' ? (p[1] || null) : null })
   const [activeIdx, setActiveIdx] = useState(0)
   const [filterCat, setFilterCat] = useState('all')
   const [showAdd, setShowAdd] = useState(false)
   const [showAddAccount, setShowAddAccount] = useState(false)
   const [dataLoading, setDataLoading] = useState(false)
+  const [locale, setLocale] = useState(() => { try { return localStorage.getItem('winance_locale') || 'fr-FR' } catch { return 'fr-FR' } })
   const rates = FALLBACK_RATES
   const [favorites, setFavorites] = useState(() => {
     try { return JSON.parse(localStorage.getItem('winance_favorites') || 'null') || ['XAF','EUR','USD','GHS'] } catch { return ['XAF','EUR','USD','GHS'] }
   })
   const [showFavModal, setShowFavModal] = useState(false)
+
+  // ── Hash routing ───────────────────────────────────────────────────────────
+  function go(pg, sec = null) {
+    const hash = '#' + (sec ? `${pg}/${sec}` : pg)
+    if (window.location.hash !== hash) history.pushState(null, '', hash)
+    setPage(pg); setSettingsSection(sec)
+  }
+  useEffect(() => {
+    function onPop() {
+      const parts = window.location.hash.slice(1).split('/')
+      setPage(parts[0] || 'home')
+      setSettingsSection(parts[0] === 'settings' ? (parts[1] || null) : null)
+    }
+    window.addEventListener('popstate', onPop)
+    if (!window.location.hash) history.replaceState(null, '', '#home')
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
 
   // ── Auth ───────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -821,8 +952,13 @@ export default function App() {
   }
 
   async function handleAddTx(txData) {
-    const { data } = await supabase.from('transactions').insert({ ...txData, user_id: session.user.id }).select().single()
-    if (data) setTransactions(p => [data, ...p])
+    if (Array.isArray(txData)) {
+      const results = await Promise.all(txData.map(t => supabase.from('transactions').insert({ ...t, user_id: session.user.id }).select().single()))
+      results.forEach(({ data }) => { if (data) setTransactions(p => [data, ...p]) })
+    } else {
+      const { data } = await supabase.from('transactions').insert({ ...txData, user_id: session.user.id }).select().single()
+      if (data) setTransactions(p => [data, ...p])
+    }
     setShowAdd(false)
   }
 
@@ -859,30 +995,30 @@ export default function App() {
 
       {/* ── HEADER — accueil uniquement ── */}
       {page === 'home' && (
-        <div style={{ padding: '24px 20px 0' }}>
+        <div style={{ padding: '20px 20px 0' }}>
           {/* Row: salutation + currency dropdown */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
             <div>
               <div style={{ fontSize: 12, color: '#ffffff55', fontWeight: 500 }}>{greeting()}</div>
               <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.5px', lineHeight: 1.1 }}>{firstname}</div>
             </div>
-            <select
-              className="cur-sel"
-              value={pivot}
-              onChange={e => setPivot(e.target.value)}
-            >
-              {favorites.map(c => <option key={c} value={c} style={{ background: '#1a0533', color: '#fff' }}>{displayCur(c)}</option>)}
-              <option disabled>──────</option>
-              {ALL_CURRENCIES.filter(c => !favorites.includes(c)).map(c => <option key={c} value={c} style={{ background: '#1a0533', color: '#fff' }}>{displayCur(c)}</option>)}
-            </select>
+            {/* Currency select with ▾ indicator */}
+            <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+              <select className="cur-sel" value={pivot} onChange={e => setPivot(e.target.value)} style={{ paddingRight: 26 }}>
+                {favorites.map(c => <option key={c} value={c} style={{ background: '#1a0533', color: '#fff' }}>{displayCur(c)}</option>)}
+                <option disabled>──────</option>
+                {ALL_CURRENCIES.filter(c => !favorites.includes(c)).map(c => <option key={c} value={c} style={{ background: '#1a0533', color: '#fff' }}>{displayCur(c)}</option>)}
+              </select>
+              <span style={{ position: 'absolute', right: 9, pointerEvents: 'none', fontSize: 10, color: '#A89CFF', lineHeight: 1 }}>▾</span>
+            </div>
           </div>
-          <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', marginBottom: 14 }} />
-          {/* Patrimoine centré */}
-          <div style={{ textAlign: 'center', marginBottom: 20 }}>
-            <div style={{ fontSize: 10, color: '#ffffff44', letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: 6 }}>Patrimoine total</div>
+          <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', marginBottom: 18 }} />
+          {/* Patrimoine centré — breathing room */}
+          <div style={{ textAlign: 'center', paddingBottom: 22 }}>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', letterSpacing: '.12em', textTransform: 'uppercase', fontWeight: 600, marginBottom: 8 }}>Patrimoine total</div>
             {dataLoading
-              ? <div className="shimmer" style={{ width: 180, height: 38, margin: '0 auto' }} />
-              : <div style={{ fontSize: 34, fontWeight: 800, letterSpacing: '-1px' }}>{fmtShort(totalPivot, pivot)}</div>}
+              ? <div className="shimmer" style={{ width: 200, height: 44, margin: '0 auto' }} />
+              : <div style={{ fontSize: 38, fontWeight: 800, letterSpacing: '-1.5px', lineHeight: 1 }}>{fmtShort(totalPivot, pivot)}</div>}
           </div>
         </div>
       )}
@@ -912,7 +1048,7 @@ export default function App() {
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <div style={{ fontSize: 16, fontWeight: 700 }}>Transactions récentes</div>
-              <button onClick={() => setPage('stats')} style={{ cursor: 'pointer', background: 'transparent', border: 'none', color: '#A89CFF', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}>Voir tout</button>
+              <button onClick={() => go('stats')} style={{ cursor: 'pointer', background: 'transparent', border: 'none', color: '#A89CFF', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}>Voir tout</button>
             </div>
             <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 8, marginBottom: 12 }}>
               {[{ id: 'all', name: 'Tout', color: '#A89CFF' }, ...categories].map(c => (
@@ -957,7 +1093,7 @@ export default function App() {
             <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4, color: '#ffffff55', letterSpacing: '.04em' }}>Historique complet</div>
             <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
               {!transactions.length && <div style={{ textAlign: 'center', padding: '32px 0', color: '#ffffff22', fontSize: 13 }}>Aucune transaction</div>}
-              {transactions.map(tx => <TxRow key={tx.id} tx={tx} accounts={accounts} pivot={pivot} toPivot={toPivot} onDelete={handleDeleteTx} />)}
+              {transactions.map(tx => <TxRow key={tx.id} tx={tx} accounts={accounts} pivot={pivot} toPivot={toPivot} onDelete={handleDeleteTx} swipeable />)}
             </div>
           </div>
         )}
@@ -970,6 +1106,10 @@ export default function App() {
           <SettingsPage
             session={session} profile={profile}
             accounts={accounts} categories={categories}
+            section={settingsSection}
+            onSection={sec => go('settings', sec)}
+            locale={locale}
+            onLocale={l => { setLocale(l); localStorage.setItem('winance_locale', l) }}
             onSaveAccount={handleSaveAccount} onDeleteAccount={handleDeleteAccount} onReorderAccounts={handleReorderAccounts}
             onSaveCategory={handleSaveCategory} onDeleteCategory={handleDeleteCategory} onReorderCategories={handleReorderCategories}
             onLogout={logout}
@@ -980,8 +1120,8 @@ export default function App() {
       {/* ── BOTTOM NAV ── */}
       <div className="bnav">
         {[['home', 'home', 'Accueil'], ['stats', 'chart', 'Stats']].map(([pg, ic, lb]) => (
-          <button key={pg} className={`ni${page === pg ? ' on' : ''}`} onClick={() => setPage(pg)}>
-            <Icon name={ic} size={22} color={page === pg ? '#A89CFF' : '#ffffff33'} />
+          <button key={pg} className={`ni${page === pg ? ' on' : ''}`} onClick={() => go(pg)}>
+            <Icon name={ic} size={22} color={page === pg ? '#A89CFF' : '#ffffff33'} filled={page === pg} />
             <span>{lb}</span>
           </button>
         ))}
@@ -991,14 +1131,14 @@ export default function App() {
           </div>
         </button>
         {[['help', 'help', 'Aide'], ['settings', 'settings', 'Réglages']].map(([pg, ic, lb]) => (
-          <button key={pg} className={`ni${page === pg ? ' on' : ''}`} onClick={() => setPage(pg)}>
-            <Icon name={ic} size={22} color={page === pg ? '#A89CFF' : '#ffffff33'} />
+          <button key={pg} className={`ni${page === pg ? ' on' : ''}`} onClick={() => go(pg)}>
+            <Icon name={ic} size={22} color={page === pg ? '#A89CFF' : '#ffffff33'} filled={page === pg} />
             <span>{lb}</span>
           </button>
         ))}
       </div>
 
-      {showAdd && accounts.length > 0 && <AddModal accounts={accounts.filter(a => a.currency)} categories={categories} onClose={() => setShowAdd(false)} onSave={handleAddTx} />}
+      {showAdd && accounts.length > 0 && <AddModal accounts={accounts.filter(a => a.currency)} categories={categories} onClose={() => setShowAdd(false)} onSave={handleAddTx} rates={rates} pivot={pivot} />}
       {showAddAccount && <AccountModal onClose={() => setShowAddAccount(false)} onSave={async (a, b) => { await handleSaveAccount(a, b); setShowAddAccount(false) }} />}
       {showFavModal && <FavoritesModal onDone={saveFavorites} />}
     </div>

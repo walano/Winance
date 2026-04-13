@@ -39,10 +39,15 @@ export const FALLBACK_RATES = {
   UGX:3750, ZAR:18.5,
 }
 
+export function getLocale() {
+  try { return localStorage.getItem('winance_locale') || 'fr-FR' } catch { return 'fr-FR' }
+}
+
 export function fmt(n, cur, dec = 2) {
   if (n === null || n === undefined || isNaN(n)) return '—'
+  const locale = getLocale()
   try {
-    return new Intl.NumberFormat('fr-FR', {
+    return new Intl.NumberFormat(locale, {
       style: 'currency', currency: cur === 'XAF' ? 'XAF' : cur,
       minimumFractionDigits: dec, maximumFractionDigits: dec
     }).format(n)
@@ -51,8 +56,8 @@ export function fmt(n, cur, dec = 2) {
 
 export function fmtShort(n, cur) {
   if (!n && n !== 0) return '—'
+  if (Math.abs(n) >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(2)}B ${displayCur(cur)}`
   if (Math.abs(n) >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M ${displayCur(cur)}`
-  if (Math.abs(n) >= 1_000) return `${(n / 1_000).toFixed(1)}K ${displayCur(cur)}`
   return fmt(n, cur)
 }
 
