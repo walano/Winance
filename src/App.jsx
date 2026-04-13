@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell } from 'recharts'
 import { supabase } from './lib/supabase'
-import { fmt, fmtShort, isXAF, initials, greeting, PIVOT_CURRENCIES, CURRENCIES, PALETTE, DEFAULT_CATEGORIES, FALLBACK_RATES } from './lib/utils'
+import { fmt, fmtShort, isXAF, initials, greeting, PIVOT_CURRENCIES, CURRENCIES, PALETTE, FALLBACK_RATES } from './lib/utils'
 import AuthPage from './pages/AuthPage'
 
 // ─── ICON ─────────────────────────────────────────────────────────────────────
@@ -36,11 +36,11 @@ const Icon = ({ name, size = 18, color = 'currentColor', style: sx = {} }) => {
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 const CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
   ::-webkit-scrollbar{width:3px;}::-webkit-scrollbar-thumb{background:#6C63FF44;border-radius:2px;}
   body{background:#0d0221;}
-  .app{min-height:100vh;background:linear-gradient(160deg,#1a0533 0%,#0d0221 60%,#120830 100%);color:#fff;font-family:'Plus Jakarta Sans',sans-serif;display:flex;flex-direction:column;}
+  .app{min-height:100vh;background:linear-gradient(160deg,#1a0533 0%,#0d0221 60%,#120830 100%);color:#fff;font-family:'Inter',sans-serif;display:flex;flex-direction:column;}
   .glass{background:rgba(255,255,255,0.04);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.07);border-radius:20px;}
   .inp{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#fff;border-radius:12px;padding:12px 16px;font-family:inherit;font-size:16px;width:100%;max-width:100%;outline:none;transition:border .2s;-webkit-appearance:none;appearance:none;}
   .inp:focus{border-color:#6C63FF;background:rgba(108,99,255,0.08);}
@@ -60,11 +60,11 @@ const CSS = `
   .slide-in{animation:slideIn .3s ease;}
   @keyframes slideIn{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:translateY(0)}}
   .bnav{position:sticky;bottom:0;background:rgba(13,2,33,0.97);backdrop-filter:blur(20px);border-top:1px solid rgba(108,99,255,0.15);padding:10px 4px 20px;display:flex;justify-content:space-around;align-items:flex-end;}
-  .ni{display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;color:#ffffff33;font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;transition:color .2s;border:none;background:transparent;font-family:inherit;padding:2px 10px;}
+  .ni{display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;color:#ffffff33;font-size:10px;font-weight:600;letter-spacing:.02em;transition:color .2s;border:none;background:transparent;font-family:inherit;padding:2px 10px;}
   .ni.on{color:#A89CFF;}
-  .lbl{font-size:11px;color:#ffffff55;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;display:block;font-weight:600;}
-  .srow{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05);cursor:pointer;transition:background .2s;}
-  .srow:hover{background:rgba(108,99,255,0.08);}
+  .lbl{font-size:11px;color:#ffffff55;letter-spacing:.04em;margin-bottom:8px;display:block;font-weight:600;}
+  .srow{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:14px;background:rgba(255,255,255,0.03);cursor:pointer;transition:background .2s;}
+  .srow:hover{background:rgba(255,255,255,0.06);}
   .shimmer{background:linear-gradient(90deg,#2a1050 25%,#3a1870 50%,#2a1050 75%);background-size:200% 100%;animation:shim 1.5s infinite;border-radius:8px;}
   @keyframes shim{0%{background-position:200% 0}100%{background-position:-200% 0}}
   .drag-item{cursor:grab;} .drag-item:active{cursor:grabbing;opacity:.5;}
@@ -75,7 +75,7 @@ const CSS = `
 function AccountAvatar({ account, size = 44, fontSize = 15 }) {
   const st = { width: size, height: size, borderRadius: size * 0.27, background: `${account.color}22`, border: `1px solid ${account.color}44`, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }
   if (account.svg_data) return <div style={st}><img src={account.svg_data} alt={account.name} style={{ width: size * 0.62, height: size * 0.62, objectFit: 'contain' }} /></div>
-  return <div style={st}><span style={{ fontSize, fontWeight: 800, color: account.color, letterSpacing: '-0.5px', fontFamily: "'Plus Jakarta Sans',sans-serif" }}>{initials(account.name)}</span></div>
+  return <div style={st}><span style={{ fontSize, fontWeight: 800, color: account.color, letterSpacing: '-0.5px', fontFamily: "'Inter',sans-serif" }}>{initials(account.name)}</span></div>
 }
 
 // ─── CAROUSEL ─────────────────────────────────────────────────────────────────
@@ -125,7 +125,8 @@ function BankCard({ account, balance, pivot, toPivot }) {
 function DragList({ items, onReorder, renderItem }) {
   const [list, setList] = useState(items)
   const dragIdx = useRef(null)
-  useEffect(() => setList(items), [items])
+  const latestList = useRef(items)
+  useEffect(() => { setList(items); latestList.current = items }, [items])
   return (
     <div style={{ display: 'grid', gap: 8 }}>
       {list.map((item, i) => (
@@ -135,10 +136,14 @@ function DragList({ items, onReorder, renderItem }) {
           onDragOver={e => {
             e.preventDefault()
             if (dragIdx.current === null || dragIdx.current === i) return
-            const next = [...list]; const [m] = next.splice(dragIdx.current, 1); next.splice(i, 0, m)
-            setList(next); dragIdx.current = i
+            const next = [...latestList.current]
+            const [m] = next.splice(dragIdx.current, 1)
+            next.splice(i, 0, m)
+            latestList.current = next
+            setList([...next])
+            dragIdx.current = i
           }}
-          onDragEnd={() => { dragIdx.current = null; onReorder(list) }}>
+          onDragEnd={() => { dragIdx.current = null; onReorder(latestList.current) }}>
           {renderItem(item)}
         </div>
       ))}
@@ -166,8 +171,7 @@ function AccountModal({ initial, onClose, onSave, onDelete }) {
           <div style={{ fontSize: 18, fontWeight: 800 }}>{isEdit ? 'Modifier le compte' : 'Nouveau compte'}</div>
           <button className="btn-g" style={{ padding: '6px 10px', borderRadius: 10, display: 'flex' }} onClick={onClose}><Icon name="x" size={16} color="#fff" /></button>
         </div>
-        {/* Aperçu */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 24, padding: '14px 16px', borderRadius: 14, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 24, padding: '14px 16px', borderRadius: 14, background: 'rgba(255,255,255,0.04)' }}>
           <div style={{ width: 52, height: 52, borderRadius: 15, background: `${color}22`, border: `2px solid ${color}66`, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
             {svgData ? <img src={svgData} style={{ width: 34, height: 34, objectFit: 'contain' }} alt="" /> : <span style={{ fontSize: 17, fontWeight: 800, color }}>{initials(name) || '?'}</span>}
           </div>
@@ -239,7 +243,7 @@ function CategoryModal({ initial, onClose, onSave, onDelete }) {
 
 // ─── ADD TX MODAL ─────────────────────────────────────────────────────────────
 function AddModal({ accounts, categories, onClose, onSave }) {
-  const [form, setForm] = useState({ accountId: accounts[0]?.id || '', amount: '', currency: accounts[0]?.currency || 'XAF', type: 'expense', categoryId: categories[0]?.id || '', note: '', date: new Date().toISOString().split('T')[0] })
+  const [form, setForm] = useState({ accountId: accounts[0]?.id || '', amount: '', currency: accounts[0]?.currency || 'XAF', type: 'expense', categoryId: '', note: '', date: new Date().toISOString().split('T')[0] })
   const [errors, setErrors] = useState({})
   const [loading, setLoading] = useState(false)
   function set(k, v) { setForm(f => ({ ...f, [k]: v })); setErrors(e => ({ ...e, [k]: false })) }
@@ -248,7 +252,6 @@ function AddModal({ accounts, categories, onClose, onSave }) {
     const e = {}
     if (!form.amount || isNaN(parseFloat(form.amount))) e.amount = 'Montant requis'
     if (!form.note.trim()) e.note = 'La note est obligatoire'
-    if (!form.categoryId) e.categoryId = 'Catégorie requise'
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -276,7 +279,7 @@ function AddModal({ accounts, categories, onClose, onSave }) {
           <label className="lbl">Type</label>
           <div style={{ display: 'flex', gap: 8 }}>
             {[['expense', 'Dépense', '#F43F5E'], ['income', 'Revenu', '#22C55E'], ['transfer', 'Transfert', '#6C63FF']].map(([v, l, c]) => (
-              <button key={v} onClick={() => set('type', v)} style={{ flex: 1, cursor: 'pointer', padding: '12px 6px', borderRadius: 12, border: '1px solid', fontFamily: 'inherit', fontSize: 14, fontWeight: 600, transition: 'all .15s', background: form.type === v ? `${c}1a` : 'transparent', color: form.type === v ? c : '#ffffff44', borderColor: form.type === v ? c : '#ffffff15' }}>{l}</button>
+              <button key={v} onClick={() => set('type', v)} style={{ flex: 1, cursor: 'pointer', padding: '12px 6px', borderRadius: 12, border: '1px solid transparent', fontFamily: 'inherit', fontSize: 14, fontWeight: 600, transition: 'all .15s', background: form.type === v ? `${c}1a` : 'rgba(255,255,255,0.04)', color: form.type === v ? c : '#ffffff55', borderColor: form.type === v ? c : 'transparent' }}>{l}</button>
             ))}
           </div>
         </div>
@@ -306,13 +309,13 @@ function AddModal({ accounts, categories, onClose, onSave }) {
             ? <div style={{ fontSize: 13, color: '#ffffff44', padding: '12px 0' }}>Aucune catégorie. Crées-en une dans les Paramètres.</div>
             : <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {categories.map(c => (
-                <button key={c.id} onClick={() => set('categoryId', c.id)} style={{ cursor: 'pointer', padding: '8px 14px', borderRadius: 20, border: '1px solid', fontFamily: 'inherit', fontSize: 14, fontWeight: 600, transition: 'all .15s', background: form.categoryId === c.id ? `${c.color}1a` : 'transparent', color: form.categoryId === c.id ? c.color : '#ffffff44', borderColor: form.categoryId === c.id ? c.color : '#ffffff15' }}>{c.name}</button>
+                <button key={c.id} onClick={() => set('categoryId', c.id)} style={{ cursor: 'pointer', padding: '8px 14px', borderRadius: 20, border: '1px solid transparent', fontFamily: 'inherit', fontSize: 14, fontWeight: 600, transition: 'all .15s', background: form.categoryId === c.id ? `${c.color}1a` : 'rgba(255,255,255,0.04)', color: form.categoryId === c.id ? c.color : '#ffffff55', borderColor: form.categoryId === c.id ? c.color : 'transparent' }}>{c.name}</button>
               ))}
             </div>}
           {errors.categoryId && <div className="err-msg">{errors.categoryId}</div>}
         </div>
 
-        {/* Note — obligatoire */}
+        {/* Note */}
         <div style={{ marginBottom: 18 }}>
           <label className="lbl">Note <span style={{ color: '#F43F5E' }}>*</span></label>
           <input className={`inp${errors.note ? ' err' : ''}`} placeholder="ex. Courses au marché, Facture électricité..." value={form.note} onChange={e => set('note', e.target.value)} />
@@ -340,8 +343,8 @@ function TxRow({ tx, accounts, pivot, toPivot, onDelete }) {
   const pivotAmt = toPivot(amt, tx.currency)
   const col = tx.category_color || '#6C63FF'
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 14, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}>
-      <div style={{ width: 40, height: 40, borderRadius: 12, background: `${col}1a`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: `1px solid ${col}33` }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 14, background: 'rgba(255,255,255,0.03)' }}>
+      <div style={{ width: 40, height: 40, borderRadius: 12, background: `${col}1a`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
         <span style={{ fontSize: 12, fontWeight: 800, color: col }}>{(tx.category_name || '?').slice(0, 2).toUpperCase()}</span>
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -372,16 +375,16 @@ function SpendChart({ transactions, categories, pivot, toPivot }) {
       <div style={{ height: 160, marginBottom: 24 }}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} barSize={28}>
-            <XAxis dataKey="name" tick={{ fill: '#ffffff44', fontSize: 10, fontFamily: 'Plus Jakarta Sans' }} axisLine={false} tickLine={false} />
+            <XAxis dataKey="name" tick={{ fill: '#ffffff44', fontSize: 10, fontFamily: 'Inter' }} axisLine={false} tickLine={false} />
             <YAxis hide />
             <Bar dataKey="total" radius={[8, 8, 0, 0]}>{data.map((d, i) => <Cell key={i} fill={d.color} fillOpacity={0.85} />)}</Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>
-      <div style={{ fontSize: 12, fontWeight: 700, color: '#ffffff55', marginBottom: 12, letterSpacing: '.08em', textTransform: 'uppercase' }}>Répartition</div>
+      <div style={{ fontSize: 12, fontWeight: 700, color: '#ffffff55', marginBottom: 12, letterSpacing: '.04em' }}>Répartition</div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
         {catTotals.slice(0, 4).map(d => (
-          <div key={d.id} style={{ flex: '1 1 80px', background: `${d.color}18`, border: `1px solid ${d.color}33`, borderRadius: 14, padding: '12px 10px', textAlign: 'center' }}>
+          <div key={d.id} style={{ flex: '1 1 80px', background: `${d.color}18`, borderRadius: 14, padding: '12px 10px', textAlign: 'center' }}>
             <div style={{ fontSize: 17, fontWeight: 800, color: d.color }}>{grandTotal > 0 ? Math.round((d.total / grandTotal) * 100) : 0}%</div>
             <div style={{ fontSize: 10, color: '#ffffff55', marginTop: 4 }}>{d.name}</div>
           </div>
@@ -421,7 +424,7 @@ function AidePage() {
 function FaqItem({ q, r }) {
   const [open, setOpen] = useState(false)
   return (
-    <div style={{ borderRadius: 14, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+    <div style={{ borderRadius: 14, background: 'rgba(255,255,255,0.03)', overflow: 'hidden' }}>
       <button onClick={() => setOpen(o => !o)} style={{ width: '100%', cursor: 'pointer', background: 'none', border: 'none', padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, fontFamily: 'inherit', color: '#fff', fontSize: 13, fontWeight: 600, textAlign: 'left' }}>
         {q}
         <Icon name="chevron_r" size={16} color="#ffffff44" style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .2s', flexShrink: 0 }} />
@@ -433,12 +436,12 @@ function FaqItem({ q, r }) {
 
 // ─── PAGE : PARAMÈTRES ────────────────────────────────────────────────────────
 function SettingsPage({ session, profile, accounts, categories, onSaveAccount, onDeleteAccount, onReorderAccounts, onSaveCategory, onDeleteCategory, onReorderCategories, onLogout }) {
-  const [section, setSection] = useState(null) // null | 'comptes' | 'categories' | 'apropos' | 'profil'
+  const [section, setSection] = useState(null)
   const [editAcct, setEditAcct] = useState(null)
   const [showNewAcct, setShowNewAcct] = useState(false)
   const [editCat, setEditCat] = useState(null)
   const [showNewCat, setShowNewCat] = useState(false)
-  const [aboutSection, setAboutSection] = useState(null) // null | 'cgv' | 'confidentialite' | 'apropos'
+  const [aboutSection, setAboutSection] = useState(null)
 
   if (section === 'comptes') return (
     <div className="fade-up" style={{ paddingBottom: 20 }}>
@@ -449,7 +452,7 @@ function SettingsPage({ session, profile, accounts, categories, onSaveAccount, o
       </div>
       <div style={{ fontSize: 12, color: '#ffffff44', marginBottom: 14 }}>Maintenez et glissez pour réordonner.</div>
       <DragList items={accounts} onReorder={onReorderAccounts} renderItem={acc => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 14, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 14, background: 'rgba(255,255,255,0.03)' }}>
           <Icon name="grip" size={16} color="#ffffff33" style={{ flexShrink: 0 }} />
           <AccountAvatar account={acc} size={38} fontSize={13} />
           <div style={{ flex: 1 }}><div style={{ fontSize: 13, fontWeight: 600 }}>{acc.name}</div><div style={{ fontSize: 11, color: '#ffffff44' }}>{acc.currency}</div></div>
@@ -469,7 +472,7 @@ function SettingsPage({ session, profile, accounts, categories, onSaveAccount, o
       </div>
       <div style={{ fontSize: 12, color: '#ffffff44', marginBottom: 14 }}>Maintenez et glissez pour réordonner.</div>
       <DragList items={categories} onReorder={onReorderCategories} renderItem={cat => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 14, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 14, background: 'rgba(255,255,255,0.03)' }}>
           <Icon name="grip" size={16} color="#ffffff33" style={{ flexShrink: 0 }} />
           <div style={{ width: 12, height: 12, borderRadius: '50%', background: cat.color, flexShrink: 0 }} />
           <div style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>{cat.name}</div>
@@ -484,7 +487,7 @@ function SettingsPage({ session, profile, accounts, categories, onSaveAccount, o
     if (aboutSection === 'cgv') return (
       <div className="fade-up" style={{ paddingBottom: 20 }}>
         <button onClick={() => setAboutSection(null)} className="btn-g" style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}><Icon name="x" size={14} color="#fff" />Retour</button>
-        <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 20 }}>Conditions Générales de Vente</div>
+        <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 20 }}>Conditions générales de vente</div>
         <div className="glass" style={{ padding: 20, fontSize: 13, color: '#ffffff88', lineHeight: 1.8 }}>
           <p style={{ marginBottom: 12 }}><strong style={{ color: '#fff' }}>1. Objet</strong><br />Winance est une application gratuite de gestion financière personnelle. Aucune transaction commerciale n'est effectuée via la plateforme.</p>
           <p style={{ marginBottom: 12 }}><strong style={{ color: '#fff' }}>2. Accès au service</strong><br />L'accès à Winance est gratuit et nécessite un compte Google. Le service est disponible sans engagement de durée.</p>
@@ -496,7 +499,7 @@ function SettingsPage({ session, profile, accounts, categories, onSaveAccount, o
     if (aboutSection === 'confidentialite') return (
       <div className="fade-up" style={{ paddingBottom: 20 }}>
         <button onClick={() => setAboutSection(null)} className="btn-g" style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}><Icon name="x" size={14} color="#fff" />Retour</button>
-        <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 20 }}>Politique de Confidentialité</div>
+        <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 20 }}>Politique de confidentialité</div>
         <div className="glass" style={{ padding: 20, fontSize: 13, color: '#ffffff88', lineHeight: 1.8 }}>
           <p style={{ marginBottom: 12 }}><strong style={{ color: '#fff' }}>Données collectées</strong><br />Winance collecte uniquement les données nécessaires au fonctionnement : prénom (via Google), transactions et comptes que tu saisis toi-même.</p>
           <p style={{ marginBottom: 12 }}><strong style={{ color: '#fff' }}>Utilisation des données</strong><br />Tes données sont utilisées exclusivement pour afficher tes informations financières. Elles ne sont jamais vendues, partagées ou utilisées à des fins publicitaires.</p>
@@ -529,12 +532,12 @@ function SettingsPage({ session, profile, accounts, categories, onSaveAccount, o
         <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 20 }}>À propos</div>
         <div style={{ display: 'grid', gap: 8 }}>
           {[
-            { key: 'cgv', icon: 'file', label: 'Conditions Générales de Vente' },
-            { key: 'confidentialite', icon: 'shield', label: 'Politique de Confidentialité' },
+            { key: 'cgv', icon: 'file', label: 'Conditions générales de vente' },
+            { key: 'confidentialite', icon: 'shield', label: 'Politique de confidentialité' },
             { key: 'winance', icon: 'info', label: 'À propos de Winance' },
           ].map(item => (
             <button key={item.key} onClick={() => setAboutSection(item.key)} className="srow" style={{ width: '100%', textAlign: 'left', fontFamily: 'inherit' }}>
-              <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(108,99,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name={item.icon} size={18} color="#A89CFF" /></div>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name={item.icon} size={18} color="#ffffffaa" /></div>
               <div style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>{item.label}</div>
               <Icon name="chevron_r" size={16} color="#ffffff33" />
             </button>
@@ -544,16 +547,14 @@ function SettingsPage({ session, profile, accounts, categories, onSaveAccount, o
     )
   }
 
-  // Menu principal paramètres
   return (
     <div className="fade-up" style={{ paddingBottom: 20 }}>
       <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 24 }}>Paramètres</div>
 
-      {/* Profil */}
       <div className="glass" style={{ padding: 20, marginBottom: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div style={{ width: 52, height: 52, borderRadius: 16, background: 'linear-gradient(135deg,#6C63FF,#4A42CC)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 6px 20px #6C63FF40' }}>
-            <Icon name="user" size={24} color="#fff" />
+          <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="user" size={24} color="#ffffffaa" />
           </div>
           <div>
             <div style={{ fontSize: 16, fontWeight: 700 }}>{profile?.firstname || '—'}</div>
@@ -562,7 +563,6 @@ function SettingsPage({ session, profile, accounts, categories, onSaveAccount, o
         </div>
       </div>
 
-      {/* Menu items */}
       <div style={{ display: 'grid', gap: 8, marginBottom: 20 }}>
         {[
           { key: 'comptes', icon: 'wallet', label: 'Comptes', sub: `${accounts.length} compte${accounts.length !== 1 ? 's' : ''}` },
@@ -570,7 +570,7 @@ function SettingsPage({ session, profile, accounts, categories, onSaveAccount, o
           { key: 'apropos', icon: 'info', label: 'À propos', sub: 'CGV, confidentialité, Winance' },
         ].map(item => (
           <button key={item.key} onClick={() => setSection(item.key)} className="srow" style={{ width: '100%', textAlign: 'left', fontFamily: 'inherit' }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(108,99,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name={item.icon} size={18} color="#A89CFF" /></div>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name={item.icon} size={18} color="#ffffffaa" /></div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 14, fontWeight: 600 }}>{item.label}</div>
               <div style={{ fontSize: 12, color: '#ffffff44', marginTop: 2 }}>{item.sub}</div>
@@ -580,7 +580,6 @@ function SettingsPage({ session, profile, accounts, categories, onSaveAccount, o
         ))}
       </div>
 
-      {/* Déconnexion */}
       <button onClick={onLogout} style={{ width: '100%', cursor: 'pointer', padding: 14, borderRadius: 14, background: 'rgba(244,63,94,0.08)', border: '1px solid rgba(244,63,94,0.2)', color: '#FB7185', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, fontFamily: 'inherit' }}>
         <Icon name="logout" size={16} color="#FB7185" />Se déconnecter
       </button>
@@ -596,11 +595,12 @@ export default function App() {
   const [accounts, setAccounts] = useState([])
   const [transactions, setTransactions] = useState([])
   const [categories, setCategories] = useState([])
-  const [pivot, setPivot] = useState('USD')
+  const [pivot, setPivot] = useState('XAF')
   const [page, setPage] = useState('home')
   const [activeIdx, setActiveIdx] = useState(0)
   const [filterCat, setFilterCat] = useState('all')
   const [showAdd, setShowAdd] = useState(false)
+  const [showAddAccount, setShowAddAccount] = useState(false)
   const [dataLoading, setDataLoading] = useState(false)
   const rates = FALLBACK_RATES
 
@@ -622,12 +622,9 @@ export default function App() {
       supabase.from('transactions').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
       supabase.from('categories').select('*').eq('user_id', uid).order('position'),
     ])
-    setProfile(prof); setPivot(prof?.pivot_currency || 'USD')
+    setProfile(prof); setPivot(prof?.pivot_currency || 'XAF')
     setAccounts(accts || []); setTransactions(txs || [])
-    if (!cats || cats.length === 0) {
-      const { data: nc } = await supabase.from('categories').insert(DEFAULT_CATEGORIES.map((c, i) => ({ ...c, user_id: uid, position: i }))).select()
-      setCategories(nc || [])
-    } else setCategories(cats)
+    setCategories(cats || [])
     setDataLoading(false)
   }
 
@@ -724,21 +721,26 @@ export default function App() {
   if (!session) return <><style>{CSS}</style><AuthPage /></>
 
   const firstname = profile?.firstname || session.user.email?.split('@')[0] || ''
-  const activeAccount = accounts[activeIdx] || accounts[0]
   function swipe(dir) { if (dir === 'next') setActiveIdx(i => Math.min(i + 1, accounts.length - 1)); else setActiveIdx(i => Math.max(i - 1, 0)) }
 
   return (
     <div className="app">
       <style>{CSS}</style>
 
-      {/* TOP BAR */}
-      <div style={{ padding: '16px 20px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: '#ffffff88' }}>{greeting(firstname)}</div>
-        <div style={{ display: 'flex', gap: 6 }}>
+      {/* ── HEADER ── */}
+      <div style={{ padding: '24px 20px 0' }}>
+        <div style={{ fontSize: 13, color: '#ffffff55', fontWeight: 500 }}>Bonsoir,</div>
+        <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.5px', marginBottom: 16 }}>{firstname}</div>
+        <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', marginBottom: 16 }} />
+        <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
           {PIVOT_CURRENCIES.map(c => (
-            <button key={c} onClick={() => setPivot(c)} style={{ cursor: 'pointer', padding: '4px 12px', borderRadius: 20, fontSize: 11, border: '1px solid', fontFamily: "'Plus Jakarta Sans',sans-serif", fontWeight: 600, transition: 'all .15s', background: pivot === c ? 'rgba(108,99,255,0.3)' : 'transparent', color: pivot === c ? '#A89CFF' : '#ffffff33', borderColor: pivot === c ? '#6C63FF66' : '#ffffff15' }}>{c}</button>
+            <button key={c} onClick={() => setPivot(c)} style={{ cursor: 'pointer', padding: '5px 13px', borderRadius: 20, fontSize: 11, border: 'none', fontFamily: "'Inter',sans-serif", fontWeight: 600, transition: 'all .15s', background: pivot === c ? 'rgba(108,99,255,0.35)' : 'rgba(255,255,255,0.06)', color: pivot === c ? '#A89CFF' : '#ffffff55' }}>{c}</button>
           ))}
         </div>
+        <div style={{ fontSize: 11, color: '#ffffff44', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 6 }}>Patrimoine total</div>
+        {dataLoading
+          ? <div className="shimmer" style={{ width: 200, height: 40, marginBottom: 20 }} />
+          : <div style={{ fontSize: 36, fontWeight: 800, letterSpacing: '-1px', marginBottom: 20 }}>{fmtShort(totalPivot, pivot)}</div>}
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px' }}>
@@ -746,14 +748,10 @@ export default function App() {
         {/* ── ACCUEIL ── */}
         {page === 'home' && (
           <div className="fade-up">
-            <div style={{ textAlign: 'center', marginBottom: 20 }}>
-              <div style={{ fontSize: 11, color: '#ffffff44', letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: 8 }}>Patrimoine total</div>
-              {dataLoading ? <div className="shimmer" style={{ width: 200, height: 42, margin: '0 auto' }} /> : <div style={{ fontSize: 36, fontWeight: 800, letterSpacing: '-1px' }}>{fmtShort(totalPivot, pivot)}</div>}
-            </div>
             {accounts.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '40px 20px' }}>
                 <div style={{ fontSize: 14, color: '#ffffff44', marginBottom: 16 }}>Aucun compte configuré</div>
-                <button onClick={() => setPage('settings')} className="btn-p" style={{ width: 'auto', padding: '12px 24px', fontSize: 14 }}>Ajouter un compte</button>
+                <button onClick={() => setShowAddAccount(true)} className="btn-p" style={{ width: 'auto', padding: '12px 24px', fontSize: 14 }}>Ajouter un compte</button>
               </div>
             ) : (
               <>
@@ -762,10 +760,8 @@ export default function App() {
                     {accounts.map(acc => <BankCard key={acc.id} account={acc} balance={getBalance(acc.id)} pivot={pivot} toPivot={toPivot} />)}
                   </CardCarousel>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    {accounts.map((_, i) => <button key={i} onClick={() => setActiveIdx(i)} style={{ cursor: 'pointer', border: 'none', borderRadius: '50%', transition: 'all .3s', width: i === activeIdx ? 20 : 8, height: 8, background: i === activeIdx ? (accounts[i]?.color || '#6C63FF') : '#ffffff22' }} />)}
-                  </div>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginBottom: 20 }}>
+                  {accounts.map((_, i) => <button key={i} onClick={() => setActiveIdx(i)} style={{ cursor: 'pointer', border: 'none', borderRadius: '50%', transition: 'all .3s', width: i === activeIdx ? 20 : 8, height: 8, background: i === activeIdx ? (accounts[i]?.color || '#6C63FF') : '#ffffff22' }} />)}
                 </div>
               </>
             )}
@@ -776,7 +772,7 @@ export default function App() {
             </div>
             <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 8, marginBottom: 12 }}>
               {[{ id: 'all', name: 'Tout', color: '#A89CFF' }, ...categories].map(c => (
-                <button key={c.id} onClick={() => setFilterCat(c.id)} style={{ cursor: 'pointer', padding: '5px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600, border: '1px solid', fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0, transition: 'all .15s', background: filterCat === c.id ? `${c.color}25` : 'transparent', color: filterCat === c.id ? c.color : '#ffffff44', borderColor: filterCat === c.id ? `${c.color}66` : '#ffffff15' }}>{c.name}</button>
+                <button key={c.id} onClick={() => setFilterCat(c.id)} style={{ cursor: 'pointer', padding: '5px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600, border: '1px solid transparent', fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0, transition: 'all .15s', background: filterCat === c.id ? `${c.color}25` : 'rgba(255,255,255,0.04)', color: filterCat === c.id ? c.color : '#ffffff55', borderColor: filterCat === c.id ? `${c.color}66` : 'transparent' }}>{c.name}</button>
               ))}
             </div>
             <div style={{ display: 'grid', gap: 8, paddingBottom: 20 }}>
@@ -794,12 +790,12 @@ export default function App() {
               <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 16, color: '#A89CFF' }}>Dépenses par catégorie</div>
               <SpendChart transactions={transactions} categories={categories} pivot={pivot} toPivot={toPivot} />
             </div>
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, color: '#ffffff55', letterSpacing: '.04em', textTransform: 'uppercase' }}>Soldes</div>
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, color: '#ffffff55', letterSpacing: '.04em' }}>Soldes</div>
             <div style={{ display: 'grid', gap: 8, marginBottom: 20 }}>
               {accounts.map(acc => {
                 const bal = getBalance(acc.id), balP = getBalancePivot(acc.id)
                 return (
-                  <div key={acc.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderRadius: 14, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div key={acc.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderRadius: 14, background: 'rgba(255,255,255,0.03)' }}>
                     <AccountAvatar account={acc} size={42} fontSize={14} />
                     <div style={{ flex: 1 }}><div style={{ fontSize: 13, fontWeight: 600 }}>{acc.name}</div><div style={{ fontSize: 11, color: '#ffffff44' }}>{acc.currency}</div></div>
                     <div style={{ textAlign: 'right' }}>
@@ -810,7 +806,7 @@ export default function App() {
                 )
               })}
             </div>
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, color: '#ffffff55', letterSpacing: '.04em', textTransform: 'uppercase' }}>Historique complet</div>
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, color: '#ffffff55', letterSpacing: '.04em' }}>Historique complet</div>
             <div style={{ display: 'grid', gap: 8 }}>
               {!transactions.length && <div style={{ textAlign: 'center', padding: '32px 0', color: '#ffffff22', fontSize: 13 }}>Aucune transaction</div>}
               {transactions.map(tx => <TxRow key={tx.id} tx={tx} accounts={accounts} pivot={pivot} toPivot={toPivot} onDelete={handleDeleteTx} />)}
@@ -841,13 +837,12 @@ export default function App() {
             <span>{lb}</span>
           </button>
         ))}
-        {/* Bouton + central */}
         <button className="ni" onClick={() => setShowAdd(true)} style={{ marginTop: -8 }}>
           <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'linear-gradient(135deg,#6C63FF,#4A42CC)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 24px #6C63FF55' }}>
             <Icon name="plus" size={24} color="#fff" />
           </div>
         </button>
-        {[['help', 'help', 'Aide'], ['settings', 'settings', 'Paramètres']].map(([pg, ic, lb]) => (
+        {[['help', 'help', 'Aide'], ['settings', 'settings', 'Réglages']].map(([pg, ic, lb]) => (
           <button key={pg} className={`ni${page === pg ? ' on' : ''}`} onClick={() => setPage(pg)}>
             <Icon name={ic} size={22} color={page === pg ? '#A89CFF' : '#ffffff33'} />
             <span>{lb}</span>
@@ -856,6 +851,7 @@ export default function App() {
       </div>
 
       {showAdd && accounts.length > 0 && <AddModal accounts={accounts.filter(a => a.currency)} categories={categories} onClose={() => setShowAdd(false)} onSave={handleAddTx} />}
+      {showAddAccount && <AccountModal onClose={() => setShowAddAccount(false)} onSave={async (a, b) => { await handleSaveAccount(a, b); setShowAddAccount(false) }} />}
     </div>
   )
 }

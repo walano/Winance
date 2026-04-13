@@ -26,14 +26,14 @@ export default function AuthPage() {
       minHeight: '100vh',
       background: 'linear-gradient(160deg,#1a0533 0%,#0d0221 60%,#120830 100%)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: 24, fontFamily: "'Plus Jakarta Sans', sans-serif", color: '#fff',
+      padding: 24, fontFamily: "'Inter', sans-serif", color: '#fff',
     }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         *,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
         .google-btn {
           width: 100%; cursor: pointer; border-radius: 14px; padding: 15px 20px;
-          font-family: inherit; font-size: 15px; font-weight: 700;
+          font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 700;
           display: flex; align-items: center; justify-content: center; gap: 12px;
           transition: all .2s; border: none;
           background: #fff; color: #1a1a1a;
