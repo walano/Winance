@@ -38,9 +38,10 @@ const Icon = ({ name, size = 18, color = 'currentColor', style: sx = {} }) => {
 const CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;overscroll-behavior:none;}
   ::-webkit-scrollbar{width:3px;}::-webkit-scrollbar-thumb{background:#6C63FF44;border-radius:2px;}
-  body{background:#0d0221;}
-  .app{min-height:100vh;background:linear-gradient(160deg,#1a0533 0%,#0d0221 60%,#120830 100%);color:#fff;font-family:'Inter',sans-serif;display:flex;flex-direction:column;}
+  body{background:#0d0221;overscroll-behavior:none;}
+  .app{height:100vh;max-height:100vh;background:linear-gradient(160deg,#1a0533 0%,#0d0221 60%,#120830 100%);color:#fff;font-family:'Inter',sans-serif;display:flex;flex-direction:column;overflow:hidden;}
   .glass{background:rgba(255,255,255,0.04);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.07);border-radius:20px;}
   .inp{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#fff;border-radius:12px;padding:12px 16px;font-family:inherit;font-size:16px;width:100%;max-width:100%;outline:none;transition:border .2s;-webkit-appearance:none;appearance:none;}
   .inp:focus{border-color:#6C63FF;background:rgba(108,99,255,0.08);}
@@ -59,12 +60,12 @@ const CSS = `
   @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
   .slide-in{animation:slideIn .3s ease;}
   @keyframes slideIn{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:translateY(0)}}
-  .bnav{position:sticky;bottom:0;background:rgba(13,2,33,0.97);backdrop-filter:blur(20px);border-top:1px solid rgba(108,99,255,0.15);padding:10px 4px 20px;display:flex;justify-content:space-around;align-items:flex-end;}
+  .bnav{position:fixed;bottom:0;left:0;right:0;background:rgba(13,2,33,0.97);backdrop-filter:blur(20px);border-top:1px solid rgba(108,99,255,0.15);padding:10px 4px 20px;display:flex;justify-content:space-around;align-items:flex-end;z-index:100;}
   .ni{display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;color:#ffffff33;font-size:10px;font-weight:600;letter-spacing:.02em;transition:color .2s;border:none;background:transparent;font-family:inherit;padding:2px 10px;}
   .ni.on{color:#A89CFF;}
   .lbl{font-size:11px;color:#ffffff55;letter-spacing:.04em;margin-bottom:8px;display:block;font-weight:600;}
-  .srow{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:14px;background:rgba(255,255,255,0.03);cursor:pointer;transition:background .2s;}
-  .srow:hover{background:rgba(255,255,255,0.06);}
+  .srow{display:flex;align-items:center;gap:14px;padding:16px 0;cursor:pointer;transition:opacity .15s;border:none;background:transparent;width:100%;text-align:left;font-family:inherit;}
+  .srow:hover{opacity:.7;}
   .shimmer{background:linear-gradient(90deg,#2a1050 25%,#3a1870 50%,#2a1050 75%);background-size:200% 100%;animation:shim 1.5s infinite;border-radius:8px;}
   @keyframes shim{0%{background-position:200% 0}100%{background-position:-200% 0}}
   .drag-item{cursor:grab;} .drag-item:active{cursor:grabbing;opacity:.5;}
@@ -441,22 +442,28 @@ function SettingsPage({ session, profile, accounts, categories, onSaveAccount, o
   const [showNewAcct, setShowNewAcct] = useState(false)
   const [editCat, setEditCat] = useState(null)
   const [showNewCat, setShowNewCat] = useState(false)
-  const [aboutSection, setAboutSection] = useState(null)
+
+  const back = () => setSection(null)
+  const BackBtn = () => (
+    <button onClick={back} className="btn-g" style={{ marginBottom: 24, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+      <Icon name="chevron_r" size={14} color="#fff" style={{ transform: 'rotate(180deg)' }} />Retour
+    </button>
+  )
 
   if (section === 'comptes') return (
     <div className="fade-up" style={{ paddingBottom: 20 }}>
-      <button onClick={() => setSection(null)} className="btn-g" style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}><Icon name="x" size={14} color="#fff" />Retour</button>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <div style={{ fontSize: 18, fontWeight: 800 }}>Comptes</div>
+      <BackBtn />
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <div style={{ fontSize: 18, fontWeight: 800 }}>Gérer les comptes</div>
         <button onClick={() => setShowNewAcct(true)} className="btn-g" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}><Icon name="plus" size={14} color="#fff" />Ajouter</button>
       </div>
-      <div style={{ fontSize: 12, color: '#ffffff44', marginBottom: 14 }}>Maintenez et glissez pour réordonner.</div>
+      <div style={{ fontSize: 12, color: '#ffffff44', marginBottom: 16 }}>Maintenez et glissez pour réordonner.</div>
       <DragList items={accounts} onReorder={onReorderAccounts} renderItem={acc => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 14, background: 'rgba(255,255,255,0.03)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <Icon name="grip" size={16} color="#ffffff33" style={{ flexShrink: 0 }} />
           <AccountAvatar account={acc} size={38} fontSize={13} />
           <div style={{ flex: 1 }}><div style={{ fontSize: 13, fontWeight: 600 }}>{acc.name}</div><div style={{ fontSize: 11, color: '#ffffff44' }}>{acc.currency}</div></div>
-          <button onClick={() => setEditAcct(acc)} className="btn-g" style={{ padding: '6px 10px', borderRadius: 10, display: 'flex' }}><Icon name="edit" size={14} color="#fff" /></button>
+          <button onClick={() => setEditAcct(acc)} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#ffffff55', display: 'flex', padding: 4 }}><Icon name="edit" size={16} color="#ffffff55" /></button>
         </div>
       )} />
       {(showNewAcct || editAcct) && <AccountModal initial={editAcct} onClose={() => { setShowNewAcct(false); setEditAcct(null) }} onSave={async (a, b) => { await onSaveAccount(a, b); setShowNewAcct(false); setEditAcct(null) }} onDelete={editAcct ? async id => { await onDeleteAccount(id); setEditAcct(null) } : null} />}
@@ -465,124 +472,109 @@ function SettingsPage({ session, profile, accounts, categories, onSaveAccount, o
 
   if (section === 'categories') return (
     <div className="fade-up" style={{ paddingBottom: 20 }}>
-      <button onClick={() => setSection(null)} className="btn-g" style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}><Icon name="x" size={14} color="#fff" />Retour</button>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <div style={{ fontSize: 18, fontWeight: 800 }}>Catégories</div>
+      <BackBtn />
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <div style={{ fontSize: 18, fontWeight: 800 }}>Gérer les catégories</div>
         <button onClick={() => setShowNewCat(true)} className="btn-g" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}><Icon name="plus" size={14} color="#fff" />Ajouter</button>
       </div>
-      <div style={{ fontSize: 12, color: '#ffffff44', marginBottom: 14 }}>Maintenez et glissez pour réordonner.</div>
+      <div style={{ fontSize: 12, color: '#ffffff44', marginBottom: 16 }}>Maintenez et glissez pour réordonner.</div>
       <DragList items={categories} onReorder={onReorderCategories} renderItem={cat => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 14, background: 'rgba(255,255,255,0.03)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <Icon name="grip" size={16} color="#ffffff33" style={{ flexShrink: 0 }} />
-          <div style={{ width: 12, height: 12, borderRadius: '50%', background: cat.color, flexShrink: 0 }} />
+          <div style={{ width: 10, height: 10, borderRadius: '50%', background: cat.color, flexShrink: 0 }} />
           <div style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>{cat.name}</div>
-          <button onClick={() => setEditCat(cat)} className="btn-g" style={{ padding: '6px 10px', borderRadius: 10, display: 'flex' }}><Icon name="edit" size={14} color="#fff" /></button>
+          <button onClick={() => setEditCat(cat)} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#ffffff55', display: 'flex', padding: 4 }}><Icon name="edit" size={16} color="#ffffff55" /></button>
         </div>
       )} />
       {(showNewCat || editCat) && <CategoryModal initial={editCat} onClose={() => { setShowNewCat(false); setEditCat(null) }} onSave={async c => { await onSaveCategory(c); setShowNewCat(false); setEditCat(null) }} onDelete={editCat ? async id => { await onDeleteCategory(id); setEditCat(null) } : null} />}
     </div>
   )
 
-  if (section === 'apropos') {
-    if (aboutSection === 'cgv') return (
-      <div className="fade-up" style={{ paddingBottom: 20 }}>
-        <button onClick={() => setAboutSection(null)} className="btn-g" style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}><Icon name="x" size={14} color="#fff" />Retour</button>
-        <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 20 }}>Conditions générales de vente</div>
-        <div className="glass" style={{ padding: 20, fontSize: 13, color: '#ffffff88', lineHeight: 1.8 }}>
-          <p style={{ marginBottom: 12 }}><strong style={{ color: '#fff' }}>1. Objet</strong><br />Winance est une application gratuite de gestion financière personnelle. Aucune transaction commerciale n'est effectuée via la plateforme.</p>
-          <p style={{ marginBottom: 12 }}><strong style={{ color: '#fff' }}>2. Accès au service</strong><br />L'accès à Winance est gratuit et nécessite un compte Google. Le service est disponible sans engagement de durée.</p>
-          <p style={{ marginBottom: 12 }}><strong style={{ color: '#fff' }}>3. Responsabilité</strong><br />Winance est un outil de suivi personnel. Les données affichées sont saisies manuellement par l'utilisateur. Winance ne peut être tenu responsable d'erreurs de saisie ou d'interprétation financière.</p>
-          <p><strong style={{ color: '#fff' }}>4. Modification des CGV</strong><br />Ces conditions peuvent être modifiées à tout moment. Les utilisateurs seront informés des changements majeurs.</p>
+  if (section === 'cgv') return (
+    <div className="fade-up" style={{ paddingBottom: 20 }}>
+      <BackBtn />
+      <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 20 }}>Conditions d'utilisation</div>
+      <div style={{ fontSize: 13, color: '#ffffff88', lineHeight: 1.8 }}>
+        <p style={{ marginBottom: 12 }}><strong style={{ color: '#fff' }}>1. Objet</strong><br />Winance est une application gratuite de gestion financière personnelle. Aucune transaction commerciale n'est effectuée via la plateforme.</p>
+        <p style={{ marginBottom: 12 }}><strong style={{ color: '#fff' }}>2. Accès au service</strong><br />L'accès à Winance est gratuit et nécessite un compte Google. Le service est disponible sans engagement de durée.</p>
+        <p style={{ marginBottom: 12 }}><strong style={{ color: '#fff' }}>3. Responsabilité</strong><br />Winance est un outil de suivi personnel. Les données affichées sont saisies manuellement par l'utilisateur. Winance ne peut être tenu responsable d'erreurs de saisie ou d'interprétation financière.</p>
+        <p><strong style={{ color: '#fff' }}>4. Modification</strong><br />Ces conditions peuvent être modifiées à tout moment. Les utilisateurs seront informés des changements majeurs.</p>
+      </div>
+    </div>
+  )
+
+  if (section === 'confidentialite') return (
+    <div className="fade-up" style={{ paddingBottom: 20 }}>
+      <BackBtn />
+      <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 20 }}>Politique de confidentialité</div>
+      <div style={{ fontSize: 13, color: '#ffffff88', lineHeight: 1.8 }}>
+        <p style={{ marginBottom: 12 }}><strong style={{ color: '#fff' }}>Données collectées</strong><br />Winance collecte uniquement les données nécessaires au fonctionnement : prénom (via Google), transactions et comptes que tu saisis toi-même.</p>
+        <p style={{ marginBottom: 12 }}><strong style={{ color: '#fff' }}>Utilisation des données</strong><br />Tes données sont utilisées exclusivement pour afficher tes informations financières. Elles ne sont jamais vendues, partagées ou utilisées à des fins publicitaires.</p>
+        <p style={{ marginBottom: 12 }}><strong style={{ color: '#fff' }}>Stockage</strong><br />Les données sont stockées sur Supabase (infrastructure sécurisée, serveurs en Europe). Chaque utilisateur n'a accès qu'à ses propres données.</p>
+        <p><strong style={{ color: '#fff' }}>Suppression</strong><br />Pour une suppression complète de ton compte, contacte support@winance.app.</p>
+      </div>
+    </div>
+  )
+
+  if (section === 'winance') return (
+    <div className="fade-up" style={{ paddingBottom: 20 }}>
+      <BackBtn />
+      <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 24 }}>À propos</div>
+      <div style={{ textAlign: 'center', marginBottom: 24 }}>
+        <div style={{ width: 72, height: 72, borderRadius: 20, background: 'linear-gradient(135deg,#6C63FF,#4A42CC)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', boxShadow: '0 12px 32px #6C63FF40' }}>
+          <Icon name="wallet" size={32} color="#fff" />
+        </div>
+        <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>Winance</div>
+        <div style={{ fontSize: 12, color: '#ffffff44', marginBottom: 20 }}>Version 1.0.0</div>
+        <div style={{ fontSize: 13, color: '#ffffff88', lineHeight: 1.7 }}>
+          Application de gestion financière personnelle multi-devises, conçue pour les Africains qui gèrent plusieurs comptes mobile money, PayPal et bancaires au quotidien.<br /><br />
+          Gratuite, sans publicité, sans revente de données.
         </div>
       </div>
-    )
-    if (aboutSection === 'confidentialite') return (
-      <div className="fade-up" style={{ paddingBottom: 20 }}>
-        <button onClick={() => setAboutSection(null)} className="btn-g" style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}><Icon name="x" size={14} color="#fff" />Retour</button>
-        <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 20 }}>Politique de confidentialité</div>
-        <div className="glass" style={{ padding: 20, fontSize: 13, color: '#ffffff88', lineHeight: 1.8 }}>
-          <p style={{ marginBottom: 12 }}><strong style={{ color: '#fff' }}>Données collectées</strong><br />Winance collecte uniquement les données nécessaires au fonctionnement : prénom (via Google), transactions et comptes que tu saisis toi-même.</p>
-          <p style={{ marginBottom: 12 }}><strong style={{ color: '#fff' }}>Utilisation des données</strong><br />Tes données sont utilisées exclusivement pour afficher tes informations financières. Elles ne sont jamais vendues, partagées ou utilisées à des fins publicitaires.</p>
-          <p style={{ marginBottom: 12 }}><strong style={{ color: '#fff' }}>Stockage</strong><br />Les données sont stockées sur Supabase (infrastructure sécurisée, serveurs en Europe). Chaque utilisateur n'a accès qu'à ses propres données.</p>
-          <p><strong style={{ color: '#fff' }}>Suppression</strong><br />Tu peux supprimer toutes tes transactions depuis les Paramètres. Pour une suppression complète de ton compte, contacte support@winance.app.</p>
-        </div>
-      </div>
-    )
-    if (aboutSection === 'winance') return (
-      <div className="fade-up" style={{ paddingBottom: 20 }}>
-        <button onClick={() => setAboutSection(null)} className="btn-g" style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}><Icon name="x" size={14} color="#fff" />Retour</button>
-        <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 20 }}>À propos de Winance</div>
-        <div className="glass" style={{ padding: 24, textAlign: 'center', marginBottom: 16 }}>
-          <div style={{ width: 64, height: 64, borderRadius: 18, background: 'linear-gradient(135deg,#6C63FF,#4A42CC)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', boxShadow: '0 12px 32px #6C63FF40' }}>
-            <Icon name="wallet" size={30} color="#fff" />
-          </div>
-          <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>Winance</div>
-          <div style={{ fontSize: 12, color: '#ffffff44', marginBottom: 16 }}>Version 1.0.0</div>
-          <div style={{ fontSize: 13, color: '#ffffff88', lineHeight: 1.7 }}>
-            Winance est une application de gestion financière personnelle multi-devises, conçue pour les Africains qui gèrent plusieurs comptes mobile money, PayPal et bancaires au quotidien.<br /><br />
-            Gratuite, sans publicité, sans revente de données.
-          </div>
-        </div>
-        <div style={{ fontSize: 12, color: '#ffffff33', textAlign: 'center' }}>Fait avec soin · support@winance.app</div>
-      </div>
-    )
-    return (
-      <div className="fade-up" style={{ paddingBottom: 20 }}>
-        <button onClick={() => setSection(null)} className="btn-g" style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}><Icon name="x" size={14} color="#fff" />Retour</button>
-        <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 20 }}>À propos</div>
-        <div style={{ display: 'grid', gap: 8 }}>
-          {[
-            { key: 'cgv', icon: 'file', label: 'Conditions générales de vente' },
-            { key: 'confidentialite', icon: 'shield', label: 'Politique de confidentialité' },
-            { key: 'winance', icon: 'info', label: 'À propos de Winance' },
-          ].map(item => (
-            <button key={item.key} onClick={() => setAboutSection(item.key)} className="srow" style={{ width: '100%', textAlign: 'left', fontFamily: 'inherit' }}>
-              <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name={item.icon} size={18} color="#ffffffaa" /></div>
-              <div style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>{item.label}</div>
-              <Icon name="chevron_r" size={16} color="#ffffff33" />
-            </button>
-          ))}
-        </div>
-      </div>
-    )
-  }
+      <div style={{ fontSize: 12, color: '#ffffff33', textAlign: 'center' }}>Fait avec soin · support@winance.app</div>
+    </div>
+  )
+
+  // ── Menu principal ──
+  const menuItems = [
+    { key: 'comptes', label: 'Gérer les comptes' },
+    { key: 'categories', label: 'Gérer les catégories' },
+    { key: 'cgv', label: 'Conditions d\'utilisation' },
+    { key: 'confidentialite', label: 'Politique de confidentialité' },
+    { key: 'winance', label: 'À propos' },
+  ]
 
   return (
     <div className="fade-up" style={{ paddingBottom: 20 }}>
-      <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 24 }}>Paramètres</div>
+      <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 28 }}>Réglages</div>
 
-      <div className="glass" style={{ padding: 20, marginBottom: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name="user" size={24} color="#ffffffaa" />
-          </div>
-          <div>
-            <div style={{ fontSize: 16, fontWeight: 700 }}>{profile?.firstname || '—'}</div>
-            <div style={{ fontSize: 12, color: '#ffffff44', marginTop: 2 }}>{session?.user?.email}</div>
-          </div>
+      {/* Profil */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, paddingBottom: 20, borderBottom: '1px solid rgba(255,255,255,0.08)', marginBottom: 4 }}>
+        <div style={{ width: 48, height: 48, borderRadius: 14, background: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <Icon name="user" size={22} color="#ffffffaa" />
+        </div>
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 700 }}>{profile?.firstname || '—'}</div>
+          <div style={{ fontSize: 12, color: '#ffffff44', marginTop: 2 }}>{session?.user?.email}</div>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gap: 8, marginBottom: 20 }}>
-        {[
-          { key: 'comptes', icon: 'wallet', label: 'Comptes', sub: `${accounts.length} compte${accounts.length !== 1 ? 's' : ''}` },
-          { key: 'categories', icon: 'tag', label: 'Catégories', sub: `${categories.length} catégorie${categories.length !== 1 ? 's' : ''}` },
-          { key: 'apropos', icon: 'info', label: 'À propos', sub: 'CGV, confidentialité, Winance' },
-        ].map(item => (
-          <button key={item.key} onClick={() => setSection(item.key)} className="srow" style={{ width: '100%', textAlign: 'left', fontFamily: 'inherit' }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name={item.icon} size={18} color="#ffffffaa" /></div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>{item.label}</div>
-              <div style={{ fontSize: 12, color: '#ffffff44', marginTop: 2 }}>{item.sub}</div>
-            </div>
+      {/* Menu items */}
+      <div>
+        {menuItems.map((item, i) => (
+          <button key={item.key} onClick={() => setSection(item.key)} className="srow" style={{ borderBottom: i < menuItems.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
+            <div style={{ flex: 1, fontSize: 14, fontWeight: 500, color: '#fff' }}>{item.label}</div>
             <Icon name="chevron_r" size={16} color="#ffffff33" />
           </button>
         ))}
       </div>
 
-      <button onClick={onLogout} style={{ width: '100%', cursor: 'pointer', padding: 14, borderRadius: 14, background: 'rgba(244,63,94,0.08)', border: '1px solid rgba(244,63,94,0.2)', color: '#FB7185', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, fontFamily: 'inherit' }}>
-        <Icon name="logout" size={16} color="#FB7185" />Se déconnecter
-      </button>
+      {/* Déconnexion */}
+      <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: 4 }}>
+        <button onClick={onLogout} className="srow" style={{ color: '#FB7185', width: '100%' }}>
+          <div style={{ flex: 1, fontSize: 14, fontWeight: 500, color: '#FB7185' }}>Se déconnecter</div>
+        </button>
+      </div>
     </div>
   )
 }
@@ -743,7 +735,7 @@ export default function App() {
           : <div style={{ fontSize: 36, fontWeight: 800, letterSpacing: '-1px', marginBottom: 20 }}>{fmtShort(totalPivot, pivot)}</div>}
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px', paddingBottom: 90 }}>
 
         {/* ── ACCUEIL ── */}
         {page === 'home' && (
